@@ -1359,9 +1359,9 @@ let stateTime = 0, T = 0, pour = null, lift = null;
 
 const PARTS_INFO = {
   spinner: { label: '加熱頭', fn: '把砂糖加熱，讓糖融化成糖液。', q: '製糖機器中央那神祕的黑洞', tag: '比喻' },
-  bowl: { label: '集糖槽', fn: '接住從加熱頭甩出來的糖絲。', q: '一塊長形呈帶狀的鋁薄片，圍繞成圓形劇場的形狀', tag: '比喻' },
+  bowl: { label: '集糖槽', fn: '接住並收集從加熱頭甩出來的糖絲。', q: '一塊長形呈帶狀的鋁薄片，圍繞成圓形劇場的形狀', tag: '比喻' },
   shield: { label: '防風玻璃', fn: '擋住外面的風，避免糖絲被吹走。', q: '透明的防風玻璃板', tag: '形容詞' },
-  motor: { label: '馬達', fn: '裝在底座裡，帶動加熱頭旋轉。', q: '然後加熱、旋轉、攪拌', tag: '動態', note: '課文把整台機器比喻成「小型流動工廠」。' }
+  motor: { label: '馬達', fn: '裝在機器底座裡面，帶動加熱頭旋轉。', q: '然後加熱、旋轉、攪拌', tag: '動態', note: '課文把整台機器比喻成「小型流動工廠」。' }
 };
 const PART_ORDER = ['spinner', 'bowl', 'shield', 'motor'];
 // Lucide 圖示（內嵌 SVG 路徑，無需外部載入）
@@ -1868,7 +1868,7 @@ const cta = (label, act, arg, on = true) => `<button class="btn primary" data-ac
 const VIEWS = {
   S0: () => `
     <h2>童年夏日棉花糖</h2>
-    <p class="lead">動手做棉花糖，描寫它的模樣。</p>
+    <p class="lead">動手做棉花糖，一起用文字來描寫它的模樣！</p>
     ${cta('開始', 'start')}`,
 
   S1: () => {
@@ -1944,12 +1944,12 @@ const VIEWS = {
     ${cta('拿木棒收集', 'go', 'S5a')}`,
 
   S5a: () => `
-    <p class="lead">${C.prog >= 1 ? '糖絲收集好了！' : '按住木棒，沿著盆邊繞圈。'}<span class="count" id="lapCount">${Math.min(LAPS, S.lap || 0)} / ${LAPS} 圈</span></p>
+    <p class="lead">${C.prog >= 1 ? '糖絲收集好了！' : '按住木棒，沿著盆邊畫圈。'}<span class="count" id="lapCount">${Math.min(LAPS, S.lap || 0)} / ${LAPS} 圈</span></p>
     <p id="live" class="live" aria-live="polite"></p>
     ${S.helpOffered && C.prog < 1 ? helpBtn('helpCircle') : ''}`,
 
   S5c: () => `
-    <p class="lead">你的棉花糖完成了！轉一轉、放大看，它是什麼樣子？</p>
+    <p class="lead">你的棉花糖完成了！轉轉看、放大看，它是什麼樣子呢？</p>
     ${quote('stick')}
     <div class="duo"><button class="btn" data-act="remake">重做一支</button><button class="btn primary" data-act="go" data-arg="S6a">開始描寫</button></div>`,
 
@@ -1967,7 +1967,7 @@ const VIEWS = {
     ${cta('我來想想', 'go', 'S6c')}`,
 
   S6c: () => `
-    <p class="lead">你的棉花糖像什麼？選擇一個，或是自己寫寫看。</p>
+    <p class="lead">你的棉花糖像什麼？從這裡面選一個，或是自己寫寫看。</p>
     <div class="assoc">
       ${ASSOC.map(a => `<button class="acard ${S.assoc === a.k ? 'on' : ''}" data-act="assoc" data-arg="${a.k}">${a.svg}<span>${a.k}</span></button>`).join('')}
       <button class="acard ${S.assoc === '__own' ? 'on' : ''}" data-act="assoc" data-arg="__own">${OWN_SVG}<span>我自己想</span></button>
@@ -1978,7 +1978,7 @@ const VIEWS = {
   S6d: () => {
     const like = esc(assocLabel());
     return `
-    <p class="lead">棉花糖哪裡像${like}？點選下面的詞語，也可以直接輸入。</p>
+    <p class="lead">你的棉花糖有哪裡像${like}呢？點選下面的詞語，或是直接輸入。</p>
     <p class="frame2">我的棉花糖像<b>${like}</b>，因為它<input id="why" class="pill-in" maxlength="24" placeholder="……" value="${esc(S.reason)}" aria-label="因為它">。</p>
     <div class="chips">${S.obsPick.map(w => `<button class="chip tc-${pickTag(w)}" data-act="ins" data-arg="${w}">${icon('plus')}${w}</button>`).join('')}</div>
     ${S.asked ? `<div class="ask"><p>你在棉花糖上看到什麼，讓你覺得它像${like}？</p></div>` : ''}
