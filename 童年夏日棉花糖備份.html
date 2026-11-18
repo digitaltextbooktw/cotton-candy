@@ -1,0 +1,2911 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>童年夏日棉花糖</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@400;500;600&display=swap">
+<style>
+  /* 版面：左側 3D 畫布、右側浮動資訊面板。一般元件為 Soft UI（微暖白、大圓角、極淡陰影）；
+     只有主要行動按鈕與目前步驟使用黏土風（Neo-Claymorphism）糖果漸層，成為視線焦點 */
+  :root {
+    --page: #F1EFF6;
+    --surface: #F9F9FB;
+    --card: #FFFFFF;
+    --ink: #2B2541;
+    --muted: #7B7590;
+    --line: rgba(43, 37, 65, .08);
+    --pink: #FF7AA8;
+    --pink-ink: #C93A6E;
+    --peach: #FFB38A;
+    --lilac: #B794F6;
+    --mint: #6FD9BC;
+    --sky: #8EC5FF;
+    --lemon: #FFE07A;
+    --flame: #F2547D; /* 3D 畫布上的拖曳目標與畫圈導引 */
+    --clay: linear-gradient(135deg, #FFB38A 0%, #FF7AA8 52%, #B794F6 100%);
+    --candy-soft: linear-gradient(135deg, #FFE1EA 0%, #EDE2FF 100%);
+    --shadow-soft: 0 4px 20px rgba(0, 0, 0, .03);
+    --shadow-chip: 0 2px 8px rgba(43, 37, 65, .05), inset 0 0 0 1px var(--line);
+    --shadow-lift: 0 10px 24px rgba(183, 148, 246, .20), inset 0 0 0 1px rgba(183, 148, 246, .25);
+    --shadow-press: inset 0 3px 8px rgba(122, 52, 140, .16), inset 0 0 0 1.5px rgba(255, 122, 168, .45);
+    --shadow-clay: 0 10px 22px rgba(255, 122, 168, .34), 0 3px 6px rgba(183, 148, 246, .25),
+                   inset 0 -5px 10px rgba(122, 52, 140, .22), inset 0 5px 10px rgba(255, 255, 255, .55);
+    --shadow-clay-press: 0 4px 10px rgba(255, 122, 168, .28),
+                         inset 0 4px 10px rgba(122, 52, 140, .30), inset 0 -2px 6px rgba(255, 255, 255, .35);
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --font: 'Fredoka', 'Chiron GoRound TC', -apple-system, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+    color-scheme: light;
+  }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; overflow: hidden;
+    background: var(--page); color: var(--ink);
+    font: 16px/1.65 var(--font);
+  }
+  .app {
+    height: 100%; box-sizing: border-box;
+    display: grid; gap: 16px;
+    grid-template-columns: minmax(0, 1fr) clamp(340px, 36vw, 450px);
+    padding-block: 16px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  @media (max-aspect-ratio: 1/1) {
+    .app { grid-template-columns: 1fr; grid-template-rows: minmax(0, 48%) minmax(0, 1fr); gap: 12px; padding-block: 12px; }
+  }
+
+  /* ===== 3D 畫布區 ===== */
+  .stage {
+    position: relative; min-width: 0; min-height: 0; overflow: hidden;
+    border-radius: 20px;
+    background: radial-gradient(110% 90% at 50% 22%, #FFFFFF 0%, #F7F1FB 52%, #ECEAF7 100%);
+    box-shadow: var(--shadow-soft), inset 0 0 0 1px rgba(255, 255, 255, .8);
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  #gl { position: absolute; inset: 0; }
+  #gl canvas { display: block; }
+  #trail, #guide { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .g-ring { fill: none; stroke: var(--flame); stroke-width: 3; stroke-dasharray: 6 6; }
+  .g-ring.near { stroke-width: 5; stroke-dasharray: none; fill: rgba(242, 84, 125, .12); }
+  .g-spin { fill: none; stroke: var(--flame); stroke-width: 2.5; stroke-dasharray: 8 7; opacity: .85; }
+  .g-bowl { fill: none; stroke: var(--flame); stroke-width: 2.5; stroke-dasharray: 8 7; opacity: .7; }
+  .g-bowl.near { stroke-width: 4; stroke-dasharray: none; fill: rgba(242, 84, 125, .08); opacity: 1; }
+
+  /* 毛玻璃浮動貼紙（操作提示、轉速、提示訊息、可拖曳工具） */
+  .glass {
+    background: rgba(255, 255, 255, .55);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, .8);
+    box-shadow: 0 4px 14px rgba(43, 37, 65, .06);
+  }
+  .viewhint {
+    position: absolute; top: 14px; right: 14px;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12.5px; color: var(--ink); letter-spacing: .04em;
+    padding: 5px 12px 5px 10px; border-radius: 999px; pointer-events: none;
+  }
+  .viewreset {
+    position: absolute; right: 18px; bottom: 18px; z-index: 3;
+    display: inline-flex; align-items: center; gap: 6px;
+    font: inherit; font-size: 13.5px; color: var(--ink); cursor: pointer;
+    padding: 8px 14px; border-radius: 999px;
+    transition: all .3s var(--ease), transform .35s var(--spring);
+  }
+  .viewreset .icon { width: 16px; height: 16px; color: var(--pink); stroke-width: 2.3; }
+  .viewreset:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(183, 148, 246, .22); }
+  .viewreset:active { transform: scale(.95); }
+  .viewhint::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--clay); box-shadow: 0 0 0 3px rgba(255, 122, 168, .15); }
+
+  .tool {
+    position: absolute; left: 18px; bottom: 18px;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 12px 16px 8px; border-radius: 20px;
+    border: 1.5px dashed rgba(242, 84, 125, .55);
+    font: inherit; font-size: 13px; font-weight: 500; color: var(--pink-ink);
+    cursor: grab; touch-action: none; z-index: 3;
+    transition: box-shadow .3s var(--ease), border-color .3s var(--ease), background-color .3s var(--ease); /* 不過渡 transform，拖曳才會跟手 */
+  }
+  .tool span { padding: 1px 10px; border-radius: 999px; background: var(--clay); color: #fff; font-size: 12px; }
+  .tool:hover { box-shadow: 0 10px 24px rgba(255, 122, 168, .22); }
+  .tool.dragging { cursor: grabbing; border-style: solid; border-color: var(--pink); box-shadow: 0 14px 30px rgba(255, 122, 168, .3); }
+  .tool:focus-visible { outline: 3px solid var(--lilac); outline-offset: 3px; }
+  #stick svg { width: 22px; height: 84px; }
+  #spoon svg { width: 84px; height: 42px; }
+
+  .speed {
+    position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
+    width: min(340px, calc(100% - 40px)); box-sizing: border-box;
+    border-radius: 999px; padding: 10px 18px;
+    display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--ink);
+  }
+  .speed-bar { position: relative; flex: 1; height: 12px; background: rgba(43, 37, 65, .08); border-radius: 999px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(43, 37, 65, .1); }
+  #speedFill { height: 100%; width: 0; background: linear-gradient(90deg, var(--lemon), var(--peach)); border-radius: 999px; transition: background .3s var(--ease); }
+  #speedFill.ok { background: linear-gradient(90deg, var(--mint), var(--sky)); }
+  .speed-mark { position: absolute; left: 60%; top: -2px; bottom: -2px; width: 2px; background: var(--ink); opacity: .5; }
+
+  .ghost { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 2; }
+  .ghost.tool-ghost { opacity: .55; }
+  .ghost.finger { width: 30px; height: 30px; border-radius: 50%; background: rgba(255, 122, 168, .4); border: 2px solid #fff; box-shadow: 0 0 0 2px rgba(255, 122, 168, .6), 0 6px 14px rgba(255, 122, 168, .35); }
+  .ghost svg { display: block; }
+
+  .toast {
+    position: absolute; top: 14px; left: 50%; transform: translate(-50%, -8px);
+    background: rgba(43, 37, 65, .82); color: #fff;
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    padding: 8px 18px; border-radius: 999px;
+    font-size: 15px; max-width: calc(100% - 40px); text-align: center;
+    opacity: 0; transition: all .3s var(--ease); pointer-events: none; z-index: 4;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ===== 右側資訊面板（Soft UI 大圓角容器） ===== */
+  .panel {
+    display: flex; flex-direction: column; min-height: 0; min-width: 0;
+    background: var(--surface); border-radius: 20px;
+    box-shadow: var(--shadow-soft), inset 0 0 0 1px rgba(255, 255, 255, .9);
+    overflow: hidden;
+  }
+  .p-head, .p-body, .p-foot { padding-left: 20px; padding-right: 20px; }
+  .p-head { padding-block: 18px 6px; display: flex; flex-direction: column; gap: 10px; }
+  /* 上一步：面板左上角的 Soft UI 小膠囊 */
+  .backbtn {
+    align-self: flex-start; display: inline-flex; align-items: center; gap: 6px;
+    font: inherit; font-size: 14px; color: var(--ink); cursor: pointer;
+    padding: 6px 14px 6px 10px; border: 0; border-radius: 999px;
+    background: var(--card); box-shadow: var(--shadow-chip);
+    transition: all .3s var(--ease), transform .35s var(--spring);
+  }
+  .backbtn .icon { width: 16px; height: 16px; color: var(--pink); stroke-width: 2.3; }
+  .backbtn:hover { transform: translateY(-1px); box-shadow: var(--shadow-lift); }
+  .backbtn:active { transform: scale(.95); box-shadow: var(--shadow-press); }
+
+  /* 步驟導覽：膠囊狀浮動卡片 */
+  .nav {
+    display: flex; flex-wrap: wrap; gap: 4px; padding: 5px;
+    background: var(--card); border-radius: 999px; box-shadow: var(--shadow-soft), inset 0 0 0 1px var(--line);
+  }
+  .nav button {
+    flex: 1 1 auto; white-space: nowrap;
+    font: inherit; font-size: 13.5px; line-height: 1.2; padding: 8px 12px;
+    border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer;
+    transition: all .3s var(--ease), transform .35s var(--spring);
+  }
+  .nav button.done { color: var(--ink); background: #F4F1F9; }
+  .nav button.done:hover { background: #EDE6F8; transform: translateY(-1px); }
+  .nav button:active:not(:disabled) { transform: scale(.94); }
+  .nav button.cur { background: var(--clay); color: #fff; font-weight: 500; box-shadow: none; } /* 進行中：同色漸層但平面，黏土材質只留給可點擊的 CTA */
+  .nav button:disabled { cursor: default; }
+  .nav button:disabled:not(.cur) { opacity: .45; }
+  #jump { font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 999px; border: 0; background: var(--card); box-shadow: var(--shadow-chip); color: var(--ink); width: max-content; }
+
+  .p-body { flex: 1; min-height: 0; overflow-y: auto; padding-block: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+  .p-body > * { margin: 0; flex-shrink: 0; }
+  h2 { font-weight: 600; font-size: 27px; line-height: 1.3; margin: 0; text-wrap: balance; letter-spacing: .02em; }
+  h3 { font-size: 19px; font-weight: 500; margin: 0; }
+  .lead { font-size: 18px; margin: 0; }
+  .note { font-size: 15px; color: var(--muted); margin: 0; }
+  .qt { font-size: 18px; font-weight: 500; margin: 0; }
+  .k { font-size: 13px; color: var(--muted); letter-spacing: .1em; margin: 0; }
+  .live { font-size: 17px; font-weight: 500; color: var(--pink-ink); margin: 0; min-height: 1.6em; }
+
+  /* 課文摘句：糖果粉彩卡片 */
+  .quote {
+    margin: 0; padding: 14px 18px; position: relative;
+    background: none; border-radius: 20px;
+    font-size: 18px; line-height: 1.85;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .quote p { margin: 0; }
+  .quote::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 2px; pointer-events: none;
+    background: linear-gradient(135deg, #FFB38A, #FF7AA8 50%, #B794F6);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+  }
+  .quote .tag {
+    align-self: flex-start;
+    font-size: 12px; font-weight: 500; letter-spacing: .06em;
+    color: var(--pink-ink); background: rgba(255, 255, 255, .75); border-radius: 999px; padding: 1px 10px;
+  }
+
+  /* 按鈕：次要為 Soft UI；主要行動為黏土風 */
+  .btn {
+    font: inherit; font-size: 17px; min-height: 46px; padding: 8px 22px;
+    border: 0; border-radius: 999px; background: var(--card); color: var(--ink); cursor: pointer;
+    box-shadow: var(--shadow-chip); align-self: flex-start;
+    transition: all .3s var(--ease), transform .35s var(--spring);
+  }
+  .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+  .btn:active:not(:disabled) { transform: translateY(1px) scale(.98); box-shadow: var(--shadow-press); }
+  .btn.primary {
+    background: var(--clay); color: #fff; font-weight: 600; letter-spacing: .04em;
+    text-shadow: 0 1px 2px rgba(122, 52, 140, .3); box-shadow: var(--shadow-clay);
+    padding-inline: 26px; min-height: 50px;
+  }
+  .btn.primary:hover:not(:disabled) { transform: translateY(-2px); filter: saturate(1.08) brightness(1.03); box-shadow: 0 14px 28px rgba(255, 122, 168, .4), 0 4px 8px rgba(183, 148, 246, .3), inset 0 -5px 10px rgba(122, 52, 140, .22), inset 0 5px 10px rgba(255, 255, 255, .55); }
+  .btn.primary:active:not(:disabled) { transform: translateY(1px) scale(.97); box-shadow: var(--shadow-clay-press); }
+  /* 主要 CTA：置中、填滿容器，左右各內縮 120px（面板太窄時自動收小內縮，按鈕至少 180px） */
+  .p-body > .btn.primary, .p-body > .hold { align-self: stretch; margin-inline: clamp(0px, calc(50% - 160px), 120px); }
+  .btn.small { font-size: 15px; min-height: 38px; padding: 4px 16px; }
+  .btn:disabled { opacity: .45; cursor: default; filter: grayscale(.35); box-shadow: none; }
+  .btn.ghostbtn { font-size: 14px; min-height: 34px; padding: 4px 14px; color: var(--muted); }
+  button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--lilac); outline-offset: 2px; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; }
+  /* Lucide 圖示：尺寸跟著文字走，線寬對應字重 400 的筆畫（約 1.4px） */
+  .icon { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.125em; }
+
+  /* 選項小卡：平時微凸，選取轉為糖果漸層並微凹陷 */
+  .opts { display: grid; gap: 10px; }
+  .opt, .chip, .pcell, .acard {
+    font: inherit; color: var(--ink); cursor: pointer;
+    border: 0; background: var(--card); box-shadow: var(--shadow-chip);
+    transition: all .3s var(--ease), transform .35s var(--spring);
+  }
+  .opt:hover, .chip:hover, .pcell:hover, .acard:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+  .opt:active, .chip:active, .pcell:active, .acard:active { transform: translateY(1px) scale(.98); box-shadow: var(--shadow-press); }
+  .opt.on, .chip.on, .pcell.cur, .acard.on { background: var(--candy-soft); box-shadow: var(--shadow-press); font-weight: 500; transform: none; }
+  .opt { font-size: 17px; text-align: left; padding: 11px 16px; min-height: 48px; border-radius: 16px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { font-size: 16px; padding: 6px 16px; min-height: 40px; border-radius: 999px; }
+
+  /* 砂糖顏色選擇與已倒入的層次 */
+  .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+  .swatch i { display: inline-block; width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px; border-radius: 50%; background: var(--c); box-shadow: inset 0 -2px 3px rgba(0, 0, 0, .12), inset 0 2px 3px rgba(255, 255, 255, .6); }
+  .layers { display: flex; flex-direction: column; gap: 6px; }
+  .layer-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--muted); }
+  .layer { padding: 2px 12px; border-radius: 999px; font-size: 14px; color: var(--ink); background: color-mix(in srgb, var(--c) 30%, white); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 50%, white); }
+  .parts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pcell { font-size: 16px; display: flex; align-items: center; gap: 10px; padding: 10px 14px; min-height: 52px; border-radius: 16px; text-align: left; }
+  .pcell .ck {
+    width: 24px; height: 24px; flex: none; border-radius: 50%;
+    display: grid; place-items: center; font-size: 13px; color: #fff;
+    background: #F1EEF6; box-shadow: inset 0 1px 3px rgba(43, 37, 65, .12);
+    transition: all .3s var(--ease);
+  }
+  .pcell.seen .ck, .pcell.done .ck { background: var(--clay); box-shadow: 0 3px 8px rgba(255, 122, 168, .35); }
+
+  .card { border-radius: 20px; padding: 16px 18px; background: var(--card); box-shadow: var(--shadow-soft), inset 0 0 0 1px var(--line); display: flex; flex-direction: column; gap: 10px; }
+  .card p { margin: 0; }
+  .done-box { background: linear-gradient(135deg, #E2FAF2 0%, #E6F0FF 100%); border-radius: 20px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+  .done-box p { margin: 0; }
+
+  .meter { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+  .meter-bar { flex: 1; height: 14px; background: #ECE8F3; border-radius: 999px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(43, 37, 65, .1); }
+  .meter-fill { height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, var(--lemon), var(--peach), var(--pink)); }
+  .meter-fill.size { background: linear-gradient(90deg, var(--mint), var(--sky), var(--lilac)); }
+  .hold {
+    font: inherit; font-size: 17px; font-weight: 600; letter-spacing: .04em; min-height: 50px; padding: 8px 26px;
+    border: 0; border-radius: 999px; background: var(--clay); color: #fff; cursor: pointer;
+    box-shadow: var(--shadow-clay); text-shadow: 0 1px 2px rgba(122, 52, 140, .3);
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    transition: all .3s var(--ease), transform .2s var(--spring);
+  }
+  .hold:hover { filter: brightness(1.03); }
+  .hold.on { transform: scale(.97); box-shadow: var(--shadow-clay-press); }
+
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .compare div { background: var(--card); box-shadow: var(--shadow-chip); border-radius: 16px; padding: 10px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .compare b { font-size: 17px; font-weight: 500; }
+
+  .demo-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 16px; }
+  .demo-flow span { background: #F6F3FA; border-radius: 999px; padding: 3px 12px; }
+  .demo-flow .arr { background: none; padding: 0; color: var(--pink); font-weight: 700; }
+  .assoc { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; }
+  .acard { font-size: 15px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px 8px; border-radius: 20px; }
+  .acard svg { width: 60px; height: 60px; }
+  .frame { font-size: 21px; line-height: 2; margin: 0; }
+  .blank { padding: 0 8px; font-weight: 500; background: linear-gradient(transparent 62%, #FFD3E2 62%); }
+  textarea, .input {
+    width: 100%; box-sizing: border-box; font: inherit; font-size: 18px; padding: 12px 14px;
+    border: 0; border-radius: 16px; background: var(--card); color: var(--ink);
+    box-shadow: inset 0 2px 6px rgba(43, 37, 65, .07), inset 0 0 0 1px var(--line);
+    transition: box-shadow .3s var(--ease);
+  }
+  textarea:focus, .input:focus { outline: none; box-shadow: inset 0 2px 6px rgba(43, 37, 65, .07), 0 0 0 3px rgba(183, 148, 246, .45); }
+  textarea { min-height: 88px; resize: vertical; }
+  textarea.big { font-size: 20px; min-height: 120px; }
+  .ask { background: #FFF6DA; border-radius: 20px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .ask p { margin: 0; font-weight: 500; }
+  .result {
+    border: 2px solid transparent; border-radius: 20px; padding: 18px 20px;
+    background: linear-gradient(var(--card), var(--card)) padding-box, var(--clay) border-box;
+    box-shadow: 0 10px 26px rgba(255, 122, 168, .14);
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .result .sent { font-size: 24px; line-height: 1.8; margin: 0; }
+  .result mark { background: linear-gradient(transparent 58%, #FFE89A 58%); color: inherit; }
+  .result mark.like { background: linear-gradient(transparent 58%, #FFC9DB 58%); }
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; font-size: 14px; }
+  .tags span { border-radius: 999px; padding: 3px 12px; }
+  .tags .t1 { background: #FFE1EA; color: var(--pink-ink); }
+  .tags .t2 { background: #FFF3C4; color: #8A6400; }
+
+  /* 底部：觀察詞標籤與重來按鈕 */
+  .p-foot { padding-block: 8px 16px; display: flex; flex-direction: column; gap: 10px; }
+  /* 觀察詞：平時收成膠囊，點開才展開成完整卡片 */
+  .bag-pill {
+    display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box;
+    font: inherit; font-size: 14.5px; color: var(--ink); cursor: pointer; text-align: left;
+    padding: 9px 16px 9px 18px; border: 0; border-radius: 999px;
+    background: var(--card); box-shadow: var(--shadow-soft), inset 0 0 0 1px var(--line);
+    transition: all .3s var(--ease), transform .35s var(--spring);
+  }
+  .bag-pill:hover { transform: translateY(-1px); box-shadow: var(--shadow-lift); }
+  .bag-pill:active { transform: scale(.98); box-shadow: var(--shadow-press); }
+  .bag-pill-label { flex: 1; }
+  .bag-dots { display: flex; gap: 8px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .bag-dots .dc { display: inline-flex; align-items: center; gap: 4px; }
+  .bag-dots .dc::before { content: ""; width: 8px; height: 8px; border-radius: 50%; }
+  .bag-dots .shape::before { background: #FF7AA8; }
+  .bag-dots .texture::before { background: #4FC9A6; }
+  .bag-dots .change::before { background: #A47EF0; }
+  .chev { width: 18px; height: 18px; color: var(--muted); transition: transform .3s var(--ease); }
+  .bag-pill[aria-expanded="true"] .chev { transform: rotate(180deg); }
+  .pcell .ck .icon { width: 14px; height: 14px; stroke-width: 3; }
+  .chip .icon { margin-right: 4px; color: var(--pink); }
+  .demo-flow .arr { display: inline-flex; }
+  .demo-flow .arr .icon { stroke-width: 2.4; }
+  .bag-pill.bump { animation: bump .6s var(--spring); }
+  @keyframes bump { 40% { transform: scale(1.04); box-shadow: 0 0 0 4px rgba(255, 122, 168, .25), var(--shadow-soft); } }
+  .bag-card {
+    display: flex; flex-direction: column; gap: 10px;
+    max-height: 38vh; overflow-y: auto; box-sizing: border-box;
+    padding: 14px 16px; border-radius: 20px;
+    background: var(--card); box-shadow: var(--shadow-soft), inset 0 0 0 1px var(--line);
+    animation: cardIn .3s var(--ease);
+  }
+  @keyframes cardIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .bag-wrap { display: flex; flex-direction: column; gap: 6px; }
+  .bag-label { font-size: 12px; color: var(--muted); letter-spacing: .14em; }
+  .bag { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* 捲軸：暖白底、毛玻璃質感的膠囊滑塊 */
+  ::-webkit-scrollbar { width: 12px; height: 12px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent; border-radius: 999px; background-clip: padding-box;
+    background-color: rgba(255, 255, 255, .55);
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, .9), rgba(236, 232, 245, .75));
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .85), inset 0 0 0 2px rgba(43, 37, 65, .08), inset 0 -2px 4px rgba(43, 37, 65, .06);
+  }
+  ::-webkit-scrollbar-thumb:hover { background-image: linear-gradient(180deg, #FFFFFF, rgba(226, 220, 240, .85)); }
+  ::-webkit-scrollbar-corner { background: var(--surface); }
+  @supports not selector(::-webkit-scrollbar) { * { scrollbar-color: #E4DFEE var(--surface); scrollbar-width: thin; } }
+  .bag .w { font-size: 13px; padding: 2px 12px; border-radius: 999px; }
+  /* 觀察詞依分類上色：形狀／質地／變化 */
+  .bag .w.shape { background: #FFE1EA; color: #B23A66; }
+  .bag .w.texture { background: #DDF6EE; color: #22795F; }
+  .bag .w.change { background: #ECE3FF; color: #6A45B8; }
+  .bag-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .legend { display: flex; gap: 10px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .legend span::before { content: ""; width: 9px; height: 9px; border-radius: 50%; }
+  .legend .shape::before { background: #FF7AA8; }
+  .legend .texture::before { background: #4FC9A6; }
+  .legend .change::before { background: #A47EF0; }
+  .bag .empty { font-size: 13px; color: var(--muted); }
+  @keyframes pop { from { transform: scale(.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before { transition: none !important; animation: none !important; }
+  }
+  /* ===== 描寫標籤：沿用課本「語文讀寫」四色，另加感覺（點線）與比喻（波浪線） ===== */
+  :root { --t-num: #9B7BE0; --t-color: #F06E9C; --t-shape: #4F94E8; --t-size: #B6F090; --t-sense: #F29A3E; --t-meta: #B86FE0; }
+  .tc-num, .u-num { --tc: var(--t-num); }
+  .tc-color, .u-color { --tc: var(--t-color); }
+  .tc-shape, .u-shape { --tc: var(--t-shape); }
+  .tc-size, .u-size { --tc: var(--t-size); }
+  .tc-sense, .u-sense { --tc: var(--t-sense); }
+  .tc-meta, .u-meta { --tc: var(--t-meta); }
+  .u {
+    --hl: color-mix(in srgb, var(--tc) 50%, transparent);
+    background: linear-gradient(transparent 52%, var(--hl) 52%, var(--hl) 92%, transparent 92%);
+    -webkit-box-decoration-break: clone; box-decoration-break: clone;
+    padding: 0 1px; border-radius: 2px; cursor: pointer;
+    transition: opacity .3s var(--ease);
+  }
+  .u:hover, .u.show { --hl: color-mix(in srgb, var(--tc) 75%, transparent); }
+  /* 比喻：不用底色，改以紫色文字標示 */
+  .u.u-meta, .u.u-meta:hover, .u.u-meta.show { --hl: transparent; color: #9A4FD0; font-weight: 500; }
+  .u:focus-visible { outline: 2px solid var(--tc); outline-offset: 2px; }
+  .quote p, .result .sent, .mine, .preview, .versions2 p { line-height: 2.2; }
+  .qtags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .qtags button {
+    font: inherit; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px 10px 1px 7px; border: 0; border-radius: 999px; cursor: pointer;
+    background: #F3EFF8; color: var(--ink); transition: all .3s var(--ease);
+  }
+  .qtags button::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--tc); }
+  .qtags button.on { background: var(--tc); color: #fff; }
+  .qtags button.on::before { background: #fff; }
+  .qtags button.tc-meta { color: #9A4FD0; font-weight: 500; }
+  .qtags button.tc-meta.on { color: #fff; }
+  .tagchip.tc-meta { color: #9A4FD0; font-weight: 500; }
+  .quote[data-filter] .u { --hl: transparent; opacity: .5; }
+  .quote[data-filter="num"] .u-num, .quote[data-filter="color"] .u-color, .quote[data-filter="shape"] .u-shape,
+  .quote[data-filter="size"] .u-size, .quote[data-filter="sense"] .u-sense, .quote[data-filter="meta"] .u-meta { --hl: color-mix(in srgb, var(--tc) 50%, transparent); opacity: 1; }
+  .quote[data-filter] .u.u-meta { --hl: transparent; }
+
+  .picks-group { display: flex; flex-direction: column; gap: 6px; }
+  .grp-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); letter-spacing: .08em; }
+  .grp-label::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--tc); }
+  .chip.on[class*="tc-"] { background: color-mix(in srgb, var(--tc) 22%, white); box-shadow: inset 0 0 0 1.5px var(--tc); }
+  .vlabel { display: inline-block; font-size: 12px; padding: 1px 10px; border-radius: 999px; background: #EEE9F5; color: var(--muted); margin-right: 8px; }
+  .vlabel.on { background: var(--candy-soft); color: var(--pink-ink); }
+  .vline { margin: 0; font-size: 16px; color: var(--muted); }
+  .mine { margin: 0; font-size: 18px; }
+  .preview { margin: 0; font-size: 19px; background: var(--card); border-radius: 16px; padding: 8px 14px; box-shadow: var(--shadow-chip); min-height: 2.2em; }
+  .versions2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .versions2 > div { background: var(--card); border-radius: 16px; padding: 10px 14px; box-shadow: var(--shadow-chip); }
+  .versions2 p { margin: 6px 0 0; font-size: 17px; }
+  .tagchip { border-radius: 999px; padding: 2px 10px; font-size: 13px; background: color-mix(in srgb, var(--tc) 28%, white); color: color-mix(in srgb, var(--tc) 45%, #2B2541); }
+
+  /* 想像地圖：核心比喻在上，延伸以直線串起 */
+  .imap { display: flex; flex-direction: column; }
+  .inode {
+    width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+    text-align: left; font: inherit; color: var(--ink); background: var(--card);
+    border: 0; border-radius: 16px; padding: 10px 14px; box-shadow: var(--shadow-chip);
+  }
+  .inode.core { background: var(--candy-soft); box-shadow: inset 0 0 0 1.5px rgba(183, 148, 246, .5); }
+  .inode b { font-size: 18px; font-weight: 600; }
+  .iname { font-size: 12.5px; color: var(--muted); letter-spacing: .06em; }
+  .iidea { font-size: 16px; line-height: 2; }
+  .seen { font-size: 13px; color: var(--muted); margin: 0; }
+  .ibranches { list-style: none; margin: 0 0 0 22px; padding: 12px 0 0; border-left: 2px solid #E4DEEE; display: flex; flex-direction: column; gap: 10px; }
+  .ibranches li { position: relative; padding-left: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .ibranches li::before { content: ""; position: absolute; left: 0; top: 24px; width: 14px; border-top: 2px solid #E4DEEE; }
+  .inode.btnnode { cursor: pointer; transition: all .3s var(--ease), transform .35s var(--spring); }
+  .inode.btnnode:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+  .inode.btnnode.open { background: #FCFAFF; box-shadow: var(--shadow-press); transform: none; }
+  .inode.empty { background: transparent; box-shadow: inset 0 0 0 1.5px #D9D2E6; color: var(--muted); cursor: pointer; border-radius: 16px; }
+  .idetail { display: flex; flex-direction: column; gap: 8px; padding-left: 4px; }
+  .grow .ibranches li { animation: grow .45s var(--spring) both; animation-delay: calc(var(--i) * 150ms); }
+  @keyframes grow { from { opacity: 0; transform: translateX(-8px) scale(.96); } }
+  .maps2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; align-items: start; }
+  .app.wide-panel { grid-template-columns: minmax(0, 1fr) clamp(340px, 55vw, 760px); }
+  @media (max-aspect-ratio: 1/1) { .app.wide-panel { grid-template-columns: 1fr; } }
+
+  /* 延伸想像 */
+  .ext { background: var(--card); border-radius: 16px; padding: 12px 14px; box-shadow: var(--shadow-chip); display: flex; flex-direction: column; gap: 6px; }
+  .ext .line { font-size: 17px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; }
+  .ext .line { align-items: center; row-gap: 6px; }
+  .ext .fill { flex: 1 1 200px; min-width: 0; display: flex; align-items: center; gap: 4px; }
+  .ext input {
+    flex: 1 1 auto; width: 100%; min-width: 0; font: inherit; font-size: 17px; color: var(--ink);
+    border: 0; border-radius: 999px; padding: 7px 16px; background: #FCEFF5;
+    transition: background-color .3s var(--ease), box-shadow .3s var(--ease);
+  }
+  .ext input::placeholder { color: #B9A9BE; }
+  .ext input:focus { outline: none; background: #F6F0FF; box-shadow: 0 0 0 2px rgba(183, 148, 246, .55); caret-color: var(--pink); }
+  .ex { font-size: 13px; color: var(--muted); margin: 0; line-height: 2; }
+  .hintbox { background: #FFF6DA; border-radius: 16px; padding: 10px 14px; font-size: 15px; display: flex; flex-direction: column; gap: 6px; }
+  .hintbox p { margin: 0; }
+  .hint { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #fff; font-size: 14px; }
+  .parts.checks { grid-template-columns: 1fr; gap: 8px; }
+  .check { display: flex; gap: 10px; align-items: center; font-size: 16px; background: var(--card); border-radius: 14px; padding: 10px 14px; box-shadow: var(--shadow-chip); cursor: pointer; }
+  .check input { width: 20px; height: 20px; accent-color: var(--pink); flex: none; }
+  .favpair { font-size: 17px; margin: 0; background: var(--candy-soft); border-radius: 16px; padding: 10px 14px; }
+
+  /* 底部：觀察詞與作者的想像兩顆膠囊 */
+  .pill-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill-row .bag-pill { width: auto; flex: 1 1 230px; }
+  .pill-row #imagToggle { flex: 1 1 150px; }
+  .imag-count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .caption { font-size: 13px; color: var(--muted); margin: 0; }
+  .p-body > .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-inline: clamp(0px, calc(50% - 160px), 120px); }
+  .duo .btn { width: 100%; padding-inline: 10px; }
+  .p-body > .btn.primary + .duo { margin-top: -4px; }
+
+  /* 拍立得：從印表機出紙、相片慢慢顯影 */
+  .polo {
+    position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px;
+    background: rgba(43, 37, 65, .38); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    animation: fadeIn .3s var(--ease);
+  }
+  .polo[hidden] { display: none; }
+  .polo-stage { --w: min(330px, 78vw, calc((100dvh - 260px) * .62)); width: calc(var(--w) + 40px); display: flex; gap: 0; flex-direction: column; align-items: center; position: relative; }
+  .printer {
+    position: relative; z-index: 2; width: 100%; height: 58px; border-radius: 22px 22px 16px 16px;
+    background: linear-gradient(180deg, #FFD3E2, #F6B4CC); box-shadow: 0 10px 24px rgba(255, 122, 168, .3), inset 0 2px 0 rgba(255, 255, 255, .7), inset 0 -4px 8px rgba(214, 90, 140, .18);
+  }
+  .printer::before { content: ""; position: absolute; left: 22px; top: 16px; width: 14px; height: 14px; border-radius: 50%; background: #FFF6DA; box-shadow: 0 0 0 4px rgba(255, 255, 255, .5); }
+  .printer::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: 8px; height: 8px; border-radius: 999px; background: #8E5A72; box-shadow: inset 0 2px 3px rgba(0, 0, 0, .35); }
+  .polo-clip { width: var(--w); margin-top: -12px; padding: 0 20px 28px; overflow: hidden; box-sizing: content-box; }
+  .polo-card {
+    -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; cursor: pointer; touch-action: manipulation;
+    margin: 0; background: #FFFDF9; padding: 14px 14px 18px; border-radius: 6px;
+    box-shadow: 0 14px 30px rgba(43, 37, 65, .22), 0 2px 4px rgba(43, 37, 65, .08);
+    transform-origin: 50% 0; animation: polo-print 2.4s cubic-bezier(.45, .05, .3, 1) both, polo-settle .8s var(--spring) 2.4s both;
+  }
+  @keyframes polo-print { 0% { transform: translateY(-102%); } 15% { transform: translateY(-80%); } 30% { transform: translateY(-62%); } 100% { transform: translateY(0); } }
+  @keyframes polo-settle { from { transform: none; } to { transform: rotate(-2deg) translateY(6px); } }
+  .polo-photo { position: relative; aspect-ratio: 1; border-radius: 2px; overflow: hidden; background: #2B2541; }
+  .polo-photo img { width: 100%; height: 100%; object-fit: cover; display: block; animation: polo-dev 3.6s ease-out .6s both; }
+  @keyframes polo-dev { from { filter: brightness(.35) saturate(0) contrast(.7) blur(2px); opacity: .6; } to { filter: none; opacity: 1; } }
+  .polo-card figcaption { padding: 12px 4px 0; display: flex; flex-direction: column; gap: 6px; }
+  .polo-text { margin: 0; font-size: 15.5px; line-height: 1.75; color: #3A3150; }
+  .polo-date { font-family: Fredoka, sans-serif; font-size: 12px; color: #A79DB8; letter-spacing: .08em; align-self: flex-end; }
+  .polo-close { position: absolute; top: -6px; right: -6px; z-index: 3; }
+  .polo-card.pressing { transition: transform .6s var(--ease), box-shadow .6s var(--ease); transform: rotate(-2deg) translateY(6px) scale(.97) !important; box-shadow: 0 0 0 4px rgba(255, 122, 168, .45), 0 10px 22px rgba(43, 37, 65, .2); }
+  .polo-tip { margin: 6px 0 0; font-size: 13px; color: #fff; opacity: 0; animation: polo-in .4s var(--ease) 2.8s forwards; text-shadow: 0 1px 4px rgba(43, 37, 65, .4); }
+  .polo-actions { display: flex; gap: 10px; margin-top: 4px; opacity: 0; animation: polo-in .4s var(--ease) 2.6s forwards; }
+  @keyframes polo-in { to { opacity: 1; } }
+  .polo-actions .btn { min-height: 42px; }
+  @media (prefers-reduced-motion: reduce) { .polo-card, .polo-photo img, .polo-actions { animation: none !important; opacity: 1; } }
+  .panel { position: relative; }
+  .imodal {
+    position: absolute; inset: 0; z-index: 20; display: flex; padding: 12px;
+    background: rgba(250, 248, 252, .72); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    animation: fadeIn .25s var(--ease);
+  }
+  .imodal[hidden] { display: none; }
+  @keyframes fadeIn { from { opacity: 0; } }
+  .imodal-card {
+    flex: 1; min-height: 0; display: flex; flex-direction: column;
+    background: var(--card); border-radius: 20px; box-shadow: var(--shadow-lift), inset 0 0 0 1px var(--line);
+    animation: cardIn .3s var(--ease);
+  }
+  .imodal-head { display: flex; align-items: center; gap: 10px; padding: 14px 14px 10px 20px; }
+  .imodal-head h3 { margin: 0; font-size: 20px; font-weight: 600; }
+  .imodal-head .imag-count { margin-right: auto; }
+  .xbtn {
+    flex: none; width: 44px; height: 44px; border: 0; border-radius: 50%; display: grid; place-items: center;
+    background: #F3EFF8; color: var(--ink); cursor: pointer; transition: background-color .3s var(--ease);
+  }
+  .xbtn:hover { background: #EAE3F3; }
+  .xbtn .icon { width: 20px; height: 20px; }
+  .imodal-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0 20px 20px; display: flex; flex-direction: column; gap: 12px; }
+  .imodal-body > * { flex-shrink: 0; }
+  .imodal .ibranches li > .inode[data-k] { cursor: pointer; }
+  .inode.locked { background: transparent; box-shadow: inset 0 0 0 1.5px #E2DCEB; color: var(--muted); }
+  .inode.locked .iidea { color: #B8AFC6; }
+  .legend span::before { background: var(--tc); }
+  .bag-dots .dc::before { background: var(--tc); }
+  .bag .w[class*="tc-"] { background: color-mix(in srgb, var(--tc) 18%, white); color: color-mix(in srgb, var(--tc) 62%, #2B2541); }
+
+  /* ===== 整合版：全螢幕 3D、浮動步驟小卡、角落 HUD ===== */
+  .app { position: fixed; inset: 0; display: block; padding: 0; height: auto; }
+  .stage { position: absolute; inset: 0; border-radius: 0; box-shadow: none; }
+  .hud { position: absolute; z-index: 6; display: flex; align-items: center; gap: 8px; }
+  .hud-tl { left: max(16px, env(safe-area-inset-left, 0px)); top: 16px; }
+  .hud-tc { left: 50%; top: 16px; transform: translateX(-50%); }
+  .hud-tr { right: max(16px, env(safe-area-inset-right, 0px)); top: 16px; }
+  .hpill {
+    display: inline-flex; align-items: center; gap: 8px; min-height: 40px; box-sizing: border-box;
+    font: inherit; font-size: 14px; color: var(--ink); cursor: pointer;
+    padding: 6px 12px 6px 14px; border: 0; border-radius: 999px;
+    background: rgba(255, 255, 255, .78); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    box-shadow: 0 4px 14px rgba(43, 37, 65, .07), inset 0 0 0 1px rgba(255, 255, 255, .9);
+    transition: all .3s var(--ease), transform .35s var(--spring);
+  }
+  .hpill:hover { transform: translateY(-1px); box-shadow: var(--shadow-lift); }
+  .hpill:active { transform: scale(.96); }
+  .hpill.icon-only { width: 40px; padding: 0; justify-content: center; }
+  .hpill .icon { width: 18px; height: 18px; color: var(--pink); stroke-width: 2.2; }
+  .hpill[aria-pressed="false"] #soundWave, .hpill[aria-pressed="false"] #soundWave2 { opacity: .2; }
+  .hpill .badge { min-width: 22px; padding: 0 7px; box-sizing: border-box; border-radius: 999px; background: var(--clay); color: #fff; font-size: 12.5px; line-height: 22px; text-align: center; font-variant-numeric: tabular-nums; }
+  .hpill.bump { animation: bump .6s var(--spring); }
+  .viewreset { position: static; padding: 6px 14px 6px 12px; }
+  .backbtn { background: rgba(255, 255, 255, .78); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); min-height: 40px; }
+  .nav { background: rgba(255, 255, 255, .72); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); flex-wrap: nowrap; }
+  .nav button { font-size: 13.5px; padding: 7px 14px; }
+  .nav button:disabled { opacity: 1; }
+  .nav button:not(.cur) { color: var(--muted); }
+  .nav button.done:not(.cur) { color: var(--ink); }
+  .viewhint { top: 66px; left: max(16px, env(safe-area-inset-left, 0px)); right: auto; }
+  .toast { top: 66px; }
+  .bag-card.pop { position: absolute; z-index: 7; top: 64px; right: max(16px, env(safe-area-inset-right, 0px)); width: min(340px, calc(100% - 32px)); max-height: 50vh; box-shadow: 0 18px 40px rgba(43, 37, 65, .14), inset 0 0 0 1px var(--line); }
+
+  .panel {
+    position: absolute; z-index: 5; display: flex; flex-direction: column;
+    right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    width: min(380px, calc(100% - 32px)); max-height: calc(100% - 96px);
+    border-radius: 24px; background: rgba(249, 249, 251, .96);
+    box-shadow: 0 18px 44px rgba(43, 37, 65, .14), inset 0 0 0 1px rgba(255, 255, 255, .9);
+    overflow: hidden; animation: cardIn .35s var(--ease);
+  }
+  .panel .p-head { padding: 14px 12px 0 20px; flex-direction: row; align-items: center; gap: 8px; }
+  .p-titles { display: flex; flex-direction: column; gap: 0; min-width: 0; flex: 1; }
+  .p-step { font-size: 12.5px; color: var(--muted); letter-spacing: .08em; }
+  .p-title { font-size: 19px; font-weight: 600; line-height: 1.35; }
+  .p-collapse { width: 36px; height: 36px; background: transparent; }
+  .p-collapse .icon { transition: transform .3s var(--ease); }
+  .panel.collapsed .p-body { display: none; }
+  .panel.collapsed .p-head { padding-bottom: 12px; }
+  .panel.collapsed .p-collapse .icon { transform: rotate(180deg); }
+  .panel.no-head .p-head { display: none; }
+  .panel .p-body { padding: 8px 20px 20px; gap: 12px; }
+  .panel.compact .p-body { padding-bottom: 16px; }
+  .panel .lead { font-size: 17.5px; line-height: 1.7; }
+  .panel .p-body > .btn.primary, .panel .p-body > .duo { margin-inline: 0; }
+  .count { display: inline-block; margin-left: 8px; padding: 0 9px; border-radius: 999px; background: #F1ECF8; color: var(--ink); font-size: 14px; font-variant-numeric: tabular-nums; vertical-align: 1px; }
+  .fb { margin: 0; font-size: 16.5px; }
+  .panel .live:empty { display: none; }
+  @media (max-aspect-ratio: 1/1) {
+    .panel { left: 12px; right: 12px; bottom: 12px; width: auto; max-height: 48%; }
+  }
+  .imodal { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 24px; }
+  .imodal[hidden] { display: none; }
+  .imodal-card { flex: none; width: min(640px, 100%); max-height: calc(100vh - 48px); }
+  .seg { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: #F3EFF8; align-self: flex-start; }
+  .seg button { font: inherit; font-size: 14px; border: 0; border-radius: 999px; padding: 6px 14px; background: transparent; color: var(--muted); cursor: pointer; }
+  .seg button.on { background: #fff; color: var(--ink); box-shadow: var(--shadow-chip); font-weight: 500; }
+
+  /* 認識：機器上的發光點與說明泡泡 */
+  .orbs { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+  .orb {
+    position: absolute; left: 0; top: 0; width: 46px; height: 46px; margin: -23px 0 0 -23px;
+    border: 0; padding: 0; border-radius: 50%; cursor: pointer; pointer-events: auto;
+    background: radial-gradient(circle at 36% 32%, #fff 0 20%, rgba(255, 255, 255, .75) 34%, rgba(255, 122, 168, .62) 68%, rgba(255, 122, 168, 0) 71%);
+    animation: orbPulse 2.2s ease-in-out infinite;
+  }
+  .orb::after { content: ""; position: absolute; inset: -8px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .95); animation: orbRing 2.2s ease-out infinite; }
+  .orb.seen { animation: none; opacity: .6; background: radial-gradient(circle at 36% 32%, #fff 0 22%, rgba(183, 148, 246, .6) 66%, rgba(183, 148, 246, 0) 70%); }
+  .orb.seen::after { display: none; }
+  .orb.cur { opacity: 1; box-shadow: 0 0 0 4px rgba(255, 255, 255, .9); }
+  @keyframes orbPulse { 50% { transform: scale(1.12); } }
+  @keyframes orbRing { from { transform: scale(.6); opacity: 1; } to { transform: scale(1.4); opacity: 0; } }
+  .bubble {
+    position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; text-align: center; white-space: nowrap;
+    transform: translate(-50%, calc(-100% - 34px)); padding: 10px 18px 12px; border-radius: 18px;
+    background: #fff; box-shadow: 0 16px 34px rgba(43, 37, 65, .16);
+    animation: bubbleIn .45s var(--spring);
+  }
+  .bubble b { display: block; font-size: 20px; font-weight: 600; color: var(--pink-ink); line-height: 1.3; }
+  .bubble small { font-size: 14.5px; color: var(--muted); }
+  .bubble::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 14px; height: 14px; background: #fff; transform: translateX(-50%) rotate(45deg); border-radius: 3px; }
+  @keyframes bubbleIn { from { opacity: 0; transform: translate(-50%, calc(-100% - 20px)) scale(.7); } }
+
+  /* 製作：跟著加熱頭的溫度環／轉速環 */
+  .dial { position: absolute; left: 0; top: 0; width: 104px; height: 104px; margin: -52px 0 0 -52px; z-index: 2; pointer-events: none; }
+  .dial svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+  .d-bg { fill: rgba(255, 255, 255, .7); stroke: rgba(255, 255, 255, .9); stroke-width: 10; }
+  .d-fg { fill: none; stroke: url(#gHeat); stroke-width: 10; stroke-linecap: round; stroke-dasharray: 314.16; stroke-dashoffset: 314.16; transition: stroke-dashoffset .12s linear; }
+  .dial.spin .d-fg { stroke: url(#gSpin2); }
+  .d-mark { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; opacity: .5; }
+  .d-num { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; line-height: 1.15; }
+  .d-num b { font-family: Fredoka, sans-serif; font-size: 22px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .d-num span { font-size: 12px; color: var(--muted); }
+
+  /* 描寫：飄在棉花糖四周的觀察詞 */
+  .fwords { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+  .fw { position: absolute; left: 0; top: 0; pointer-events: auto; transform: translate(-50%, -50%); white-space: nowrap; font-size: 17px; min-height: 44px; padding: 6px 16px; background: rgba(255, 255, 255, .9); animation: fwIn .5s var(--spring) both; }
+  .fw.on { background: color-mix(in srgb, var(--tc) 30%, white); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--tc) 70%, white); transform: translate(-50%, -50%); }
+  .fw:hover { transform: translate(-50%, calc(-50% - 2px)); }
+  @keyframes fwIn { from { opacity: 0; scale: .6; } }
+
+  /* 翻卡：課文 ↔ 我的糖 */
+  .flip { perspective: 900px; cursor: pointer; outline: none; }
+  .flip-in { display: grid; transition: transform .6s var(--ease); transform-style: preserve-3d; }
+  .flip.on .flip-in { transform: rotateY(180deg); }
+  .face { grid-area: 1 / 1; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px 14px; border-radius: 20px; background: #fff; box-shadow: var(--shadow-chip); }
+  .face.back { transform: rotateY(180deg); }
+  .face .k { display: flex; align-items: center; gap: 6px; }
+  .flip-hint { font-size: 13px; color: var(--pink-ink); align-self: flex-end; }
+  .flip:focus-visible .face { outline: 3px solid var(--lilac); }
+  .swatch em { font-style: normal; margin-left: 6px; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--clay); color: #fff; font-size: 12px; }
+  .pill-in { font: inherit; font-size: 17px; color: var(--ink); border: 0; border-radius: 999px; padding: 6px 14px; background: #FCEFF5; min-width: 0; width: 9em; max-width: 100%; }
+  .pill-in:focus { outline: none; background: #F6F0FF; box-shadow: 0 0 0 2px rgba(183, 148, 246, .55); caret-color: var(--pink); }
+  .frame2 { margin: 0; font-size: 18px; line-height: 2.2; }
+  .extpick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .extpick .acard { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 14px; border-radius: 16px; text-align: left; }
+  .extpick .acard b { font-size: 16.5px; font-weight: 600; }
+  .extpick .acard span { font-size: 13.5px; color: var(--muted); }
+  .extpick .acard.done b::after { content: " ✓"; color: var(--pink); }
+</style>
+
+<div class="app">
+  <section class="stage" id="stage" aria-label="3D 棉花糖機">
+    <div id="gl"></div>
+    <canvas id="trail" aria-hidden="true"></canvas>
+    <svg id="guide" aria-hidden="true">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0 0L10 5L0 10z" fill="#F2547D"/>
+        </marker>
+      </defs>
+      <circle id="gRing" class="g-ring" r="30" style="display:none"/>
+      <polyline id="gSpin" class="g-spin" marker-end="url(#arr)" style="display:none"/>
+      <ellipse id="gBowl" class="g-bowl" style="display:none"/>
+    </svg>
+    <div id="speed" class="speed glass" hidden><div id="speedFill"></div></div>
+    <button id="spoon" class="tool glass" type="button" aria-label="銅勺，拖到加熱頭上" hidden>
+      <svg viewBox="0 0 84 42" aria-hidden="true"><rect x="38" y="18" width="42" height="7" rx="3.5" fill="#b06a38" stroke="#7a4220" stroke-width="2"/><ellipse cx="22" cy="21" rx="18" ry="13" fill="#c98049" stroke="#7a4220" stroke-width="2"/><ellipse id="spoonSugar" cx="22" cy="18" rx="12" ry="6.5" fill="#FF8FB8" stroke="#e6dccf" stroke-width="1"/></svg>
+      <span>拖到加熱頭</span>
+    </button>
+    <div id="orbs" class="orbs" hidden></div>
+    <div id="bubble" class="bubble" hidden></div>
+    <div id="dial" class="dial" hidden>
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <defs>
+          <linearGradient id="gHeat" x1="0" x2="1"><stop offset="0" stop-color="#FFE07A"/><stop offset="1" stop-color="#F2547D"/></linearGradient>
+          <linearGradient id="gSpin2" x1="0" x2="1"><stop offset="0" stop-color="#8EC5FF"/><stop offset="1" stop-color="#B794F6"/></linearGradient>
+        </defs>
+        <circle class="d-bg" cx="60" cy="60" r="50"/>
+        <circle id="dialFg" class="d-fg" cx="60" cy="60" r="50"/>
+        <line id="dialMark" class="d-mark" x1="60" y1="4" x2="60" y2="18" hidden/>
+      </svg>
+      <div class="d-num"><b id="dialNum"></b><span id="dialLbl"></span></div>
+    </div>
+    <div id="fwords" class="fwords" hidden></div>
+    <div id="ghost" class="ghost" hidden></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="viewhint" class="viewhint glass">拖曳旋轉・雙指縮放</div>
+  </section>
+
+  <div class="hud hud-tl">
+    <button id="restart" class="backbtn" type="button" aria-label="回到上一步"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>上一步</button>
+  </div>
+  <nav id="nav" class="hud hud-tc nav" aria-label="學習階段（老師可點選跳到該階段）"></nav>
+  <div class="hud hud-tr">
+    <button id="viewReset" class="viewreset hpill icon-only" aria-label="回到完整視角" title="回到完整視角" type="button" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-6-6m6 6v-4.8m0 4.8h-4.8"/><path d="M3 16.2V21m0 0h4.8M3 21l6-6"/><path d="M21 7.8V3m0 0h-4.8M21 3l-6 6"/><path d="M3 7.8V3m0 0h4.8M3 3l6 6"/></svg></button>
+    <button id="soundToggle" class="hpill icon-only" type="button" aria-pressed="true" aria-label="音效"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path id="soundWave" d="M15.5 8.5a5 5 0 0 1 0 7"/><path id="soundWave2" d="M19 5a10 10 0 0 1 0 14"/></svg></button>
+    <button id="imagToggle" class="hpill" type="button" aria-haspopup="dialog" aria-controls="imagModal">作者的想像<span id="imagCount" class="badge">0/5</span></button>
+  </div>
+
+  <aside class="panel" aria-label="步驟小卡">
+    <header class="p-head">
+      <div class="p-titles"><span id="pStep" class="p-step"></span><b id="pTitle" class="p-title"></b></div>
+      <button id="pCollapse" class="xbtn p-collapse" type="button" aria-expanded="true" aria-label="收合小卡"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+    </header>
+    <div id="pbody" class="p-body"></div>
+  </aside>
+    <div id="polaroid" class="polo" hidden role="dialog" aria-modal="true" aria-label="我的棉花糖拍立得">
+      <div class="polo-stage">
+        <div class="printer" aria-hidden="true"></div>
+        <div class="polo-clip"><figure class="polo-card"><div class="polo-photo"><img id="poloImg" alt="我做的棉花糖"></div>
+          <figcaption><p id="poloText" class="polo-text"></p><span id="poloDate" class="polo-date"></span></figcaption></figure></div>
+        <div class="polo-actions"><button id="poloDone" class="btn primary" type="button">收起來</button></div>
+        <p class="polo-tip">長按拍立得，可以下載圖片</p>
+      </div>
+    </div>
+    <div id="imagModal" class="imodal" hidden>
+      <div class="imodal-card" role="dialog" aria-modal="true" aria-labelledby="imagTitle">
+        <div class="imodal-head">
+          <h3 id="imagTitle">作者的想像</h3>
+          <span id="imagCount2" class="imag-count">0/5</span>
+          <button id="imagClose" class="xbtn" type="button" aria-label="關閉"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+        <div id="imagBody" class="imodal-body"></div>
+      </div>
+    </div>
+</div>
+
+<!-- 以 Import Map 引入 Three.js（ES Modules） -->
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
+    }
+  }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+/* ============================================================
+   工具函式
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const V3 = THREE.Vector3;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const ease = t => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let seed = 11;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+const noise3 = (x, y, z) => Math.sin(x * 3.1 + y * 1.7) * Math.cos(z * 2.9 - x * 1.3) * 0.6 + Math.sin(y * 5.3 + z * 4.1 + x * 0.7) * 0.4;
+const TAU = Math.PI * 2;
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const stageEl = $('#stage'), glEl = $('#gl'), pbody = $('#pbody'), bagEl = $('#bag'), navEl = $('#nav');
+const toastEl = $('#toast'), trailCv = $('#trail'), speedEl = $('#speed'), speedFill = $('#speedFill');
+const spoonTool = $('#spoon'), ghostEl = $('#ghost'), restartBtn = $('#restart'), viewHint = $('#viewhint');
+const gRing = $('#gRing'), gSpin = $('#gSpin'), gBowl = $('#gBowl');
+const orbsEl = $('#orbs'), bubbleEl = $('#bubble'), dialEl = $('#dial'), fwordsEl = $('#fwords'), panelEl = $('.panel');
+
+/* ============================================================
+   渲染器：抗鋸齒、透明背景、sRGB 色彩管理
+   ============================================================ */
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setClearColor(0x000000, 0);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NeutralToneMapping; // 柔和色調映射，保留粉彩飽和度
+// 畫質分級：平板等觸控裝置一開始就用輕量設定；執行中若幀率過低，再自動降級
+const IS_TABLET = navigator.maxTouchPoints > 1 && window.matchMedia('(pointer: coarse)').matches;
+let QUALITY = IS_TABLET ? 'low' : 'high';
+let MAX_DPR = QUALITY === 'high' ? 2 : 1.25;
+let composer = null, useAO = false; // 環境光遮蔽後製（只在完整版開啟）
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_DPR));
+glEl.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+// 粉彩漸層背景：果凍透光材質需要背景才看得出通透感
+{
+  const c = document.createElement('canvas'); c.width = 4; c.height = 256;
+  const g = c.getContext('2d'), grad = g.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0, '#F6EEFF'); grad.addColorStop(0.55, '#FBEFF4'); grad.addColorStop(1, '#FFF1E6');
+  g.fillStyle = grad; g.fillRect(0, 0, 4, 256);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  scene.background = tex;
+}
+// 粉彩環境貼圖：用彩色光板生成，反光帶粉橘、淡藍、鵝黃、淡紫色調
+{
+  const env = new THREE.Scene();
+  env.background = new THREE.Color('#EDE6F5');
+  const board = (color, pos, size) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide }));
+    m.position.copy(pos); m.lookAt(0, 0, 0); env.add(m);
+  };
+  board('#FFC9B0', new THREE.Vector3(-6, 3, 2), 6);
+  board('#B8DCFF', new THREE.Vector3(6, 3, 2), 6);
+  board('#FFF4C9', new THREE.Vector3(0, 7, 0), 7);
+  board('#E4D2FF', new THREE.Vector3(0, 2, -7), 6);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(env, 0.04).texture;
+  pmrem.dispose();
+}
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+camera.position.set(5.6, 6.6, 7.8);
+
+// 鏡頭控制：360 度旋轉與縮放（操作手勢時會鎖定）
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.enablePan = false;
+controls.minDistance = 2.5;
+controls.maxDistance = 18;
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.target.set(0, 1.4, 0);
+
+// 粉彩燈光（材質測試台定案）：天空光、左暖粉橘、右淡藍、後方淡紫輪廓，棉花糖兩側粉紅與鵝黃點光
+const ENV_INTENSITY = 1.3;
+scene.add(new THREE.HemisphereLight(0xf3e8ff, 0xffe6d6, 1.75));
+const warm = new THREE.DirectionalLight(0xffc2a6, 2.4);
+warm.position.set(-5, 6, 3);
+const cool = new THREE.DirectionalLight(0xa9d2ff, 1.25);
+cool.position.set(5, 5, 2);
+const rim = new THREE.DirectionalLight(0xd6c2ff, 0.6);
+rim.position.set(0, 4, -5);
+const pinkLight = new THREE.PointLight(0xff9ec4, 6, 0, 1.4);
+pinkLight.position.set(-2.1, 4.4, 1.6);
+const lemonLight = new THREE.PointLight(0xfff0a8, 5, 0, 1.4);
+lemonLight.position.set(2.1, 4.1, 1.4);
+scene.add(warm, cool, rim, pinkLight, lemonLight);
+
+/* ============================================================
+   棉花糖機模型
+   ============================================================ */
+// 機台材質：果凍霧面（MeshPhysicalMaterial，參數取自材質測試台）
+// 輕量版：關閉透光（每幀省下一次整個場景的繪製）與外層光澤，改為不透明，霧面果凍的顏色與粗糙度不變
+const JELLY = { roughness: 0.72, opacity: 0.9, transmission: 0.2, ior: 1.48, clearcoat: 0.16, clearcoatRoughness: 0.6, thickness: 2 };
+if (QUALITY === 'low') Object.assign(JELLY, { opacity: 1, transmission: 0, clearcoat: 0 });
+const metal = (c, transparent = QUALITY === 'high') => new THREE.MeshPhysicalMaterial({
+  color: c, metalness: 0, ...JELLY, transparent,
+  envMapIntensity: ENV_INTENSITY, side: THREE.DoubleSide
+});
+const BASE_H = 1.1, BOWL_Y = 1.28, SP_Y = 1.42;
+
+// 幾何工具：合併頂點後重算法線 → 低面數但光影平滑、呈現圓潤倒角
+function smoothGeo(geo) {
+  geo.deleteAttribute('uv');
+  geo.deleteAttribute('normal');
+  const g = mergeVertices(geo, 1e-4);
+  g.computeVertexNormals();
+  return g;
+}
+// 剖面先以平滑曲線取樣再繞中心旋轉；圓周分段足夠，輪廓才會是正圓
+function latheGeo(pts, seg, samples) {
+  const curve = new THREE.SplineCurve(pts.map(([x, y]) => new THREE.Vector2(x, y)));
+  return smoothGeo(new THREE.LatheGeometry(curve.getPoints(samples), seg));
+}
+
+const spinMat = metal(0xffecc2);
+const knobMat = metal(0xffecc2);
+
+// --- 底座與內部馬達：圓角方塊 ---
+const baseMat = metal(0xc3d2ee, true); // 底座保持透明材質，點選馬達時才能直接變半透明而不需重新編譯著色器
+const base = new THREE.Mesh(smoothGeo(new RoundedBoxGeometry(3.6, BASE_H, 3.6, 2, 0.28)), baseMat);
+base.position.y = BASE_H / 2;
+const bevel = new THREE.Mesh(smoothGeo(new RoundedBoxGeometry(3.3, 0.22, 3.3, 2, 0.1)), baseMat);
+bevel.position.y = BASE_H + 0.08;
+const knob = new THREE.Mesh(smoothGeo(new THREE.SphereGeometry(0.26, 20, 12)), knobMat);
+knob.scale.set(1, 1, 0.45);
+knob.position.set(0, BASE_H * 0.5, 1.8);
+const motorMat = new THREE.MeshStandardMaterial({ color: 0x8d84a8, roughness: 0.7, metalness: 0, envMapIntensity: ENV_INTENSITY });
+const motorBody = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.62, 24), motorMat);
+motorBody.position.y = 0.5;
+const motorCap = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.55, 0.14, 24), motorMat);
+motorCap.position.y = 0.88;
+const motorShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.36, 12), motorMat);
+motorShaft.position.y = 1.1;
+scene.add(base, bevel, knob, motorBody, motorCap, motorShaft);
+
+// --- 集糖槽：圓潤唇口的內凹盆（64 段圓周 × 24 點平滑剖面） ---
+const bowlMat = metal(0xeac3cf);
+const bowl = new THREE.Mesh(latheGeo([
+  [0, 0], [1.28, 0], [1.42, 0.07], [1.62, 0.9], [1.71, 1.0], [1.7, 1.08], [1.62, 1.12],
+  [1.54, 1.07], [1.46, 0.96], [1.25, 0.2], [1.12, 0.14], [0, 0.14]
+], 64, 24), bowlMat);
+bowl.position.y = BOWL_Y;
+scene.add(bowl);
+
+// --- 加熱頭：中空圓環，洞內為「神祕的黑洞」 ---
+// 黑洞：暖調深褐、不受燈光影響（在粉彩畫面中相對是「黑」）；加熱時顏色轉為橘光
+const HOLE_COLOR = new THREE.Color(0x574749), HEAT_COLOR = new THREE.Color(0xff6a1a);
+const holeMat = new THREE.MeshBasicMaterial({ color: HOLE_COLOR.clone(), side: THREE.DoubleSide });
+const spinner = new THREE.Group();
+spinner.position.y = SP_Y;
+const spBody = new THREE.Mesh(latheGeo([
+  [0.2, 0.02], [0.4, 0], [0.47, 0.06], [0.49, 0.26], [0.47, 0.46], [0.4, 0.52], [0.24, 0.52], [0.2, 0.46], [0.2, 0.02]
+], 48, 18), spinMat);
+const spFloor = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.06, 32), holeMat);
+spFloor.position.y = 0.12;
+const spSleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.198, 0.198, 0.42, 32, 1, true), holeMat);
+spSleeve.position.y = 0.32;
+const spShaft = new THREE.Mesh(smoothGeo(new THREE.CylinderGeometry(0.1, 0.14, 0.2, 16)), spinMat);
+spShaft.position.y = -0.04;
+const spinnerMeshes = [spBody, spFloor, spSleeve, spShaft];
+for (let i = 0; i < 4; i++) {
+  const nub = new THREE.Mesh(smoothGeo(new THREE.SphereGeometry(0.09, 10, 6)), spinMat);
+  const a = (i / 4) * TAU;
+  nub.position.set(Math.cos(a) * 0.5, 0.26, Math.sin(a) * 0.5);
+  nub.scale.set(1, 1.3, 1);
+  spinnerMeshes.push(nub);
+}
+spinner.add(...spinnerMeshes);
+scene.add(spinner);
+
+// 糖液：加熱頭洞內的透明液面
+const liquidMat = new THREE.MeshPhysicalMaterial({ color: 0xfff1cf, transparent: true, opacity: 0, roughness: 0.15, metalness: 0 });
+const liquid = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 1, 32), liquidMat);
+liquid.visible = false;
+spinner.add(liquid);
+const heatLight = new THREE.PointLight(0xff7a2a, 0, 2.6);
+heatLight.position.set(0, 1.75, 0);
+if (QUALITY === 'high') scene.add(heatLight); // 輕量版省略這盞點光，加熱只靠洞口變色
+
+// --- 防風玻璃：大直徑、薄壁、無上下蓋的毛玻璃管 ---
+// 防風玻璃：同一組果凍參數，但更薄更透
+const glassMat = new THREE.MeshPhysicalMaterial({
+  color: 0xf4f8ff, metalness: 0, transparent: true,
+  roughness: JELLY.roughness * 0.6, opacity: 0.9 * 0.55, transmission: QUALITY === 'high' ? Math.min(1, JELLY.transmission + 0.3) : 0, // 輕量版玻璃不透光（透光會讓整個場景每幀多畫一次）
+  ior: JELLY.ior, clearcoat: JELLY.clearcoat, clearcoatRoughness: JELLY.clearcoatRoughness, thickness: 1.2,
+  envMapIntensity: ENV_INTENSITY, side: THREE.DoubleSide, depthWrite: false
+});
+const shield = new THREE.Mesh(smoothGeo(new THREE.CylinderGeometry(1.92, 1.92, 1.5, 64, 1, true)), glassMat);
+shield.position.y = BOWL_Y + 0.35 + 0.75;
+shield.renderOrder = 2;
+scene.add(shield);
+
+// --- 零件登錄：供 Stage 1 點選與高亮 ---
+const PARTS = {
+  spinner: { mats: [spinMat], meshes: spinnerMeshes },
+  bowl: { mats: [bowlMat], meshes: [bowl] },
+  shield: { mats: [glassMat], meshes: [shield] },
+  motor: { mats: [baseMat, motorMat, knobMat], meshes: [base, bevel, knob, motorBody, motorCap, motorShaft] }
+};
+for (const [k, p] of Object.entries(PARTS)) p.meshes.forEach(m => { m.userData.part = k; });
+const pickables = Object.values(PARTS).flatMap(p => p.meshes);
+// 發光點位置：依零件外框挑一個看得到的點
+const PART_ANCHOR = {};
+{
+  const box = new THREE.Box3();
+  for (const [k, p] of Object.entries(PARTS)) {
+    box.makeEmpty();
+    p.meshes.forEach(m => { m.updateWorldMatrix(true, false); box.expandByObject(m); });
+    const c = box.getCenter(new V3());
+    PART_ANCHOR[k] = k === 'spinner' ? new V3(c.x, box.max.y, c.z)
+      : k === 'bowl' ? new V3(c.x - (box.max.x - c.x) * 0.55, c.y, c.z + (box.max.z - c.z) * 0.8)
+      : k === 'shield' ? new V3(c.x + (box.max.x - c.x) * 0.62, box.max.y - (box.max.y - box.min.y) * 0.15, c.z + (box.max.z - c.z) * 0.62)
+      : new V3(c.x + (box.max.x - c.x) * 0.4, c.y, box.max.z);
+  }
+}
+
+function setEmissive(k, hex, intensity) {
+  for (const m of PARTS[k].mats) { m.emissive.setHex(hex); m.emissiveIntensity = intensity; }
+}
+function clearHighlights() { Object.keys(PARTS).forEach(k => setEmissive(k, 0x000000, 0)); }
+// 點選馬達時底座變半透明（果凍材質本身已是透明材質，只切換不透明度、透光與深度寫入）
+// 只改不透明度與深度寫入，不觸發著色器重新編譯（之前切換透光會在平板上卡住）
+function setBaseSeeThrough(on) {
+  baseMat.opacity = on ? 0.28 : JELLY.opacity;
+  baseMat.depthWrite = !on;
+}
+// 執行中降級：關閉透光與外層光澤、移除加熱點光（只會發生一次）
+function degradeMaterials() {
+  QUALITY = 'low';
+  Object.assign(JELLY, { opacity: 1, transmission: 0, clearcoat: 0 });
+  [baseMat, bowlMat, spinMat, knobMat, glassMat].forEach(m => {
+    m.transmission = 0; m.clearcoat = 0;
+    if (m !== glassMat) m.opacity = (m === baseMat && S.part === 'motor') ? 0.28 : 1;
+    m.needsUpdate = true;
+  });
+  scene.remove(heatLight);
+  setAO(false);
+}
+
+/* ============================================================
+   砂糖粒、銅勺、糖絲、糖液滴、棉花糖
+   ============================================================ */
+// 砂糖粒：少量實例化低多邊形顆粒
+const SUGAR_N = 110;
+const sugarMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25, metalness: 0.1, emissive: 0x303030, flatShading: true, transparent: true });
+const sugar = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.03, 0), sugarMat, SUGAR_N);
+sugar.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+sugar.visible = false;
+scene.add(sugar);
+const heap = [], starts = [], delays = [];
+for (let i = 0; i < SUGAR_N; i++) {
+  const a = rnd() * TAU, r = Math.sqrt(rnd()) * 0.16;
+  heap.push(new V3(Math.cos(a) * r, 1.6 + rnd() * 0.13 * (1 - r / 0.18), Math.sin(a) * r));
+  starts.push(new V3(0.12 + (rnd() - 0.5) * 0.08, 2.98, 0.2 + (rnd() - 0.5) * 0.08));
+  delays.push(i * 0.011);
+}
+heap.sort((a, b) => a.y - b.y); // 先倒的糖在底層
+const dummy = new THREE.Object3D();
+// 三種顏色的砂糖：最多倒三勺，每勺一批顆粒
+const MAX_POURS = 3, BATCH = Math.floor(SUGAR_N / MAX_POURS);
+const SUGARS = [
+  { k: '粉紅', hex: 0xf9bdd0, css: '#F9BDD0' }, { k: '橘', hex: 0xfbcfb2, css: '#FBCFB2' }, { k: '黃', hex: 0xf8e6a6, css: '#F8E6A6' },
+  { k: '綠', hex: 0xc5e9bf, css: '#C5E9BF' }, { k: '藍', hex: 0xbfd9f7, css: '#BFD9F7' }, { k: '紫', hex: 0xd9c4f5, css: '#D9C4F5' }
+]; // 與測試台棉花糖色同明度的粉彩色票
+const SUGAR_CSS = Object.fromEntries(SUGARS.map(c => [c.k, c.css]));
+const SUGAR_HEX = Object.fromEntries(SUGARS.map(c => [c.k, c.hex]));
+const WHITE = new THREE.Color(0xffffff);
+for (let i = 0; i < SUGAR_N; i++) sugar.setColorAt(i, WHITE);
+function setSugar(i, p, s) {
+  dummy.position.copy(p);
+  dummy.rotation.set(i, i * 2, i * 3);
+  dummy.scale.setScalar(Math.max(s, 0.0001));
+  dummy.updateMatrix();
+  sugar.setMatrixAt(i, dummy.matrix);
+}
+function placeHeap(h = 0) {
+  const s = 1 - 0.9 * smooth(0.25, 1, h);
+  const count = S.pours.length * BATCH; // 只顯示倒進去的顆粒
+  for (let i = 0; i < SUGAR_N; i++) {
+    const p = heap[i].clone();
+    p.y -= 0.05 * h;
+    setSugar(i, p, i < count ? s : 0);
+  }
+  sugar.instanceMatrix.needsUpdate = true;
+}
+
+// 銅勺（倒糖動畫用）
+const copperMat = new THREE.MeshStandardMaterial({ color: 0xb87333, roughness: 0.45, metalness: 0.6, flatShading: false, side: THREE.DoubleSide });
+const spoon3d = new THREE.Group();
+const spoonCup = new THREE.Mesh(new THREE.SphereGeometry(0.2, 64, 32, 0, TAU, 0, Math.PI / 2), copperMat);
+spoonCup.rotation.x = Math.PI;
+spoonCup.scale.set(1, 0.45, 1);
+const spoonHandle = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.93, 12, 32), copperMat);
+spoonHandle.rotation.z = Math.PI / 2;
+spoonHandle.position.set(0.68, 0.04, 0);
+spoon3d.add(spoonCup, spoonHandle);
+spoon3d.position.set(0.18, 3.06, 0.2);
+spoon3d.visible = false;
+scene.add(spoon3d);
+
+// 糖絲：預先建好螺旋線，以進度控制長度
+const threadMat = new THREE.LineBasicMaterial({ color: 0xffffff, vertexColors: true, transparent: true, opacity: 0.85 });
+const threadGroup = new THREE.Group();
+const THREAD_N = 54, TP = 26;
+const threads = [];
+for (let k = 0; k < THREAD_N; k++) {
+  const a0 = (k / THREAD_N) * TAU + rnd() * 0.1;
+  const y0 = 1.78 + (rnd() - 0.5) * 0.14;
+  const pts = [];
+  for (let j = 0; j < TP; j++) {
+    const t = j / (TP - 1);
+    const r = 0.46 + t * 0.9;
+    const a = a0 + t * 1.3;
+    pts.push(new V3(Math.cos(a) * r, y0 + Math.sin(t * 9 + k) * 0.03 + t * 0.05 * ((k % 3) - 1), Math.sin(a) * r));
+  }
+  const g = new THREE.BufferGeometry().setFromPoints(pts);
+  g.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(TP * 3).fill(1), 3));
+  g.setDrawRange(0, 0);
+  const line = new THREE.Line(g, threadMat);
+  threads.push(line);
+  threadGroup.add(line);
+}
+scene.add(threadGroup);
+
+// 槽壁累積的雲霧狀糖絲
+const ringGeo = new THREE.TorusGeometry(1.17, 0.17, 7, 40);
+{
+  const pos = ringGeo.attributes.position, v = new V3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    v.multiplyScalar(1 + 0.06 * noise3(v.x * 2, v.y * 2, v.z * 2));
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  ringGeo.computeVertexNormals();
+}
+const ringMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, opacity: 0, flatShading: true, depthWrite: false });
+const fluffRing = new THREE.Mesh(ringGeo, ringMat);
+fluffRing.rotation.x = Math.PI / 2;
+fluffRing.position.y = 1.82;
+scene.add(fluffRing);
+
+// 轉速不足時滴落的糖液
+const dropMat = new THREE.MeshStandardMaterial({ color: 0xfff0c8, roughness: 0.2, metalness: 0, transparent: true, opacity: 0.9 });
+const drops = [];
+for (let i = 0; i < 14; i++) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 4), dropMat);
+  m.visible = false;
+  scene.add(m);
+  drops.push({ m, v: new V3(), life: 0 });
+}
+let dropTimer = 0;
+function spawnDrop() {
+  const d = drops.find(x => !x.m.visible);
+  if (!d) return;
+  const a = Math.random() * TAU;
+  d.m.position.set(Math.cos(a) * 0.47, 1.82, Math.sin(a) * 0.47);
+  d.v.set(Math.cos(a) * 0.35, 0.2, Math.sin(a) * 0.35);
+  d.life = 0;
+  d.m.visible = true;
+}
+
+// 木棒與棉花糖
+const candyGroup = new THREE.Group();
+candyGroup.visible = false;
+scene.add(candyGroup);
+const stickMesh = new THREE.Mesh(
+  new THREE.CapsuleGeometry(0.04, 2.52, 12, 32),
+  new THREE.MeshStandardMaterial({ color: 0xe9cba2, roughness: 0.85, metalness: 0, envMapIntensity: ENV_INTENSITY })
+);
+stickMesh.position.y = 2.6;
+candyGroup.add(stickMesh);
+// 棉花糖：細分球體（約 1,000 頂點）＋兩層雜訊推出柔軟鼓包，平滑法線
+const candyGeo = smoothGeo(new THREE.IcosahedronGeometry(1, 9));
+{
+  const pos = candyGeo.attributes.position, v = new V3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const n = noise3(v.x * 2.2, v.y * 2.2, v.z * 2.2) + 0.25 * noise3(v.x * 3.6 + 3, v.y * 3.6, v.z * 3.6 - 1);
+    v.multiplyScalar(1 + 0.18 * n);
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  candyGeo.computeVertexNormals();
+  candyGeo.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(pos.count * 3).fill(1), 3));
+}
+// 絨毛材質（測試台定案）：完全無鏡面反光，邊緣透出柔和絨光；顏色來自頂點色（依倒糖順序分層）
+const candyMat = new THREE.MeshPhysicalMaterial({
+  color: 0xffffff, vertexColors: true, metalness: 0, roughness: 1, specularIntensity: 0,
+  sheen: 1, sheenRoughness: 0.7, sheenColor: new THREE.Color(0xffffff), envMapIntensity: ENV_INTENSITY
+});
+const candyMesh = new THREE.Mesh(candyGeo, candyMat);
+const candyPivot = new THREE.Group();
+candyPivot.position.y = 2.25;
+candyPivot.add(candyMesh);
+candyGroup.add(candyPivot);
+
+/* ============================================================
+   攝影機視角
+   ============================================================ */
+const CAM = {
+  overview: { pos: new V3(5.6, 6.6, 7.8), target: new V3(0, 1.4, 0) },
+  closeTop: { pos: new V3(0, 5.0, 2.4), target: new V3(0, 1.6, 0) },
+  bowlTop: { pos: new V3(0, 8.4, 3.5), target: new V3(0, 1.75, 0) },
+  candy: { pos: new V3(2.2, 4.9, 3.9), target: new V3(0, 3.75, 0) },
+  // 零件特寫
+  spinnerFocus: { pos: new V3(1.3, 4.3, 2.7), target: new V3(0, 1.7, 0) },
+  bowlFocus: { pos: new V3(2.4, 4.4, 3.8), target: new V3(0, 1.8, 0) },
+  shieldFocus: { pos: new V3(3.4, 3.4, 4.6), target: new V3(0, 2.3, 0) },
+  motorFocus: { pos: new V3(2.8, 1.9, 3.6), target: new V3(0, 0.6, 0) }
+};
+let camView = 'overview', camTween = null;
+const FOCUS_VIEWS = new Set(['spinnerFocus', 'bowlFocus', 'shieldFocus', 'motorFocus', 'closeTop']);
+const PART_VIEW = { spinner: 'spinnerFocus', bowl: 'bowlFocus', shield: 'shieldFocus', motor: 'motorFocus' };
+// 特寫狀態且鏡頭可自由操作時，右下角顯示「回到完整視角」
+function updateResetBtn() {
+  const b = document.getElementById('viewReset');
+  if (b) b.hidden = !(controls.enabled && FOCUS_VIEWS.has(camView));
+}
+function goView(name, dur = 0.9) {
+  camView = name;
+  updateResetBtn();
+  const v = CAM[name];
+  const k = camera.aspect < 1.1 ? Math.pow(1.1 / camera.aspect, 0.8) : 1; // 直向螢幕拉遠
+  const pos = v.target.clone().add(v.pos.clone().sub(v.target).multiplyScalar(k));
+  if (dur <= 0) {
+    camera.position.copy(pos);
+    controls.target.copy(v.target);
+    camTween = null;
+    return;
+  }
+  camTween = { t: 0, dur, p0: camera.position.clone(), p1: pos, t0: controls.target.clone(), t1: v.target.clone() };
+}
+
+/* ============================================================
+   響應式：場景區尺寸改變時更新攝影機與渲染器
+   ============================================================ */
+let W = 1, H = 1;
+const trailCtx = trailCv.getContext('2d');
+function resize() {
+  const r = stageEl.getBoundingClientRect();
+  W = Math.max(1, r.width); H = Math.max(1, r.height);
+  const dpr = Math.min(window.devicePixelRatio, MAX_DPR);
+  renderer.setPixelRatio(dpr);
+  renderer.setSize(W, H);
+  if (composer) { composer.setPixelRatio(dpr); composer.setSize(W, H); }
+  camera.aspect = W / H;
+  applyViewOffset();
+  trailCv.width = W * dpr; trailCv.height = H * dpr;
+  trailCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (!controls.enabled) goView(camView, 0);
+}
+new ResizeObserver(resize).observe(stageEl);
+window.addEventListener('resize', resize);
+
+// 橫向時，小卡佔住右下角：畫面中心往左移半張小卡寬，機器就不會被擋住
+function applyViewOffset() {
+  if (W / H > 1.05) camera.setViewOffset(W, H, (panelEl.offsetWidth + 16) / 2, 0, W, H);
+  else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
+}
+function proj(v) {
+  const p = v.clone().project(camera);
+  return { x: (p.x + 1) / 2 * W, y: (1 - p.y) / 2 * H };
+}
+const dist2 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+/* ============================================================
+   學習狀態
+   ============================================================ */
+// 導覽只分三步；內部仍保留 6 個階段，第 2～5 階段合併為「製作棉花糖」
+const STEPS = [
+  { label: '認識棉花糖機', short: '認識', from: 1, to: 1 },
+  { label: '製作棉花糖', short: '製作', from: 2, to: 5 },
+  { label: '描寫', short: '描寫', from: 6, to: 6 }
+];
+const FIRST = ['S0', 'S1', 'S2a', 'S3a', 'S4a', 'S5a', 'S6a'];
+const CAM_LOCK = new Set(['S2b', 'S3a', 'S4a', 'S5a']);
+const COMPACT = new Set(['S2b', 'S3a', 'S4a', 'S5a']); // 操作中：小卡縮成一行提示
+const LAPS = 6; // 收集糖絲要繞的圈數
+const stageOf = st => (st === 'S0' ? 0 : +st[1]);
+
+const S = {
+  state: 'S0', stage: 0, maxStage: 0, bag: [],
+  seen: new Set(), part: null, showQuote: false, s1done: false,
+  fails: 0, helpOffered: false, hint1: false,
+  pours: [], sugarPick: '粉紅',
+  prediction: null, observed: [], sandAnswer: null, pourPlan: [], flipped: false, lap: 0, auto: null, extIdx: 0, imagTab: 'author',
+  heat: 0, holding: false,
+  level: 0, sustain: 0, threadP: 0, threadFade: 1, autoSpin: false, s4ask: false, s4answer: null,
+  autoCircle: false,
+  obsPick: [], assoc: null, assocCustom: '', reason: '', asked: false,
+  // 描寫：作者的想像收集、地圖、寫法一／二、延伸句、成果頁
+  imag: [], mapOpened: new Set(), mapSeen: new Set(),
+  sentence1: '', sentence2: '', caret2: 0, asked4: false,
+  ext: { maker: '', tools: '', product: '', craft: '' }, askedExt: false, showHints: false,
+  check: [false, false, false], favMine: null, favAuthor: null
+};
+const C = { prog: 0, acc: 0, flat: 0, skew: 0, dir: 0, flatT: 0, skewT: 0, samples: [], shape: null };
+let stateTime = 0, T = 0, pour = null, lift = null;
+
+const PARTS_INFO = {
+  spinner: { label: '加熱頭', fn: '把砂糖加熱，讓糖融化成糖液。', q: '製糖機器中央那神祕的黑洞', tag: '比喻' },
+  bowl: { label: '集糖槽', fn: '接住從加熱頭甩出來的糖絲。', q: '一塊長形呈帶狀的鋁薄片，圍繞成圓形劇場的形狀', tag: '比喻' },
+  shield: { label: '防風玻璃', fn: '擋住外面的風，避免糖絲被吹走。', q: '透明的防風玻璃板', tag: '形容詞' },
+  motor: { label: '馬達', fn: '裝在底座裡，帶動加熱頭旋轉。', q: '然後加熱、旋轉、攪拌', tag: '動態', note: '課文把整台機器比喻成「小型流動工廠」。' }
+};
+const PART_ORDER = ['spinner', 'bowl', 'shield', 'motor'];
+// Lucide 圖示（內嵌 SVG 路徑，無需外部載入）
+const LUCIDE = {
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>'
+};
+const icon = name => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${LUCIDE[name]}</svg>`;
+const PRED = ['像水一樣會流動', '燒成黑色的粉末', '不會有變化', '我不確定'];
+const OBS3 = ['變透明了', '融在一起', '會流動', '變小了', '變大了', '黏在一起', '沒有變化'];
+const S4OPT = ['被轉動的力量甩出去', '被風吹出去', '自己慢慢爬出去'];
+const SHAPE_WORDS = { 圓潤: ['圓滾滾', '胖胖的', '很飽滿'], 扁平: ['扁扁的', '寬寬的', '矮矮的'], 偏斜: ['歪向一邊', '一邊大一邊小', '斜斜的'] };
+const CANDY_GENERAL = ['白白的', '蓬鬆', '軟綿綿', '一絲一絲', '輕飄飄'];
+// 依倒入的砂糖顏色提供顏色觀察詞
+const COLOR_WORD = { 粉紅: '粉粉的', 紫: '紫紫的', 藍: '藍藍的', 橘: '橘橘的', 黃: '黃黃的', 綠: '綠綠的' };
+const colorWords = () => (S.pours.length ? [...new Set(S.pours.map(k => COLOR_WORD[k]))] : ['白白的']);
+const KEYCHARS = ['圓', '扁', '歪', '斜', '白', '鬆', '軟', '絲', '團', '蓬', '寬', '矮', '胖', '亮', '輕', '大', '小', '高', '滿', '飄', '綿', '粉', '紫', '藍', '色'];
+
+const SVG = (inner) => `<svg viewBox="0 0 64 64" aria-hidden="true">${inner}</svg>`;
+const ASSOC = [
+  { k: '白雲', svg: SVG("<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M17 45C9 45 6 40 7 34C8 28 13 25 19 26C21 17 28 14 35 17C40 19 42 23 43 27C50 26 57 30 57 37C57 42 53 45 47 45Z\"/></g>") },
+  { k: '綿羊', svg: SVG("<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 43L18 50M36 44L37 50M17 30C10 27 7 32 11 36\"/><path fill=\"#FFF\" d=\"M17 23C17 17 25 15 29 19C33 13 42 16 43 22C51 21 55 29 50 34C52 41 44 47 38 43C32 49 24 46 22 43C13 45 9 36 14 31C11 27 13 24 17 23Z\"/><path fill=\"#FFF\" d=\"M43 29C47 26 53 28 54 33L53 40C50 45 43 44 41 39L40 34Z\"/><path d=\"M43 29Q38 23 37 29Q37 32 41 33\"/><circle cx=\"49\" cy=\"34\" r=\"1.1\" fill=\"currentColor\" stroke=\"none\"/></g>") },
+  { k: '枕頭', svg: SVG("<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path fill=\"#FFF\" d=\"M10 18Q32 12 54 18Q50 31 54 46Q32 51 10 46Q14 32 10 18Z\"/><path d=\"M10 18L17 25M54 18L47 25M10 46L17 39M54 46L47 39\"/></g>") },
+  { k: '蒲公英', svg: SVG("<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"> <path d=\"M31 33Q34 44 29 55\"/> <g stroke-width=\"1.4\"><g transform=\"rotate(0 31 26)\"><path d=\"M31 24V11M27.8 9.5L31 13L34.2 9.5M31 13V8\"/></g><g transform=\"rotate(30 31 26)\"><path d=\"M31 24V11M27.8 9.5L31 13L34.2 9.5M31 13V8\"/></g><g transform=\"rotate(60 31 26)\"><path d=\"M31 24V11M27.8 9.5L31 13L34.2 9.5M31 13V8\"/></g><g transform=\"rotate(90 31 26)\"><path d=\"M31 24V11M27.8 9.5L31 13L34.2 9.5M31 13V8\"/></g><g transform=\"rotate(120 31 26)\"><path d=\"M31 24V11M27.8 9.5L31 13L34.2 9.5M31 13V8\"/></g><g transform=\"rotate(150 31 26)\"><path d=\"M31 24V11M27.8 9.5L31 13L34.2 9.5M31 13V8\"/></g><g transform=\"rotate(180 31 26)\"><path d=\"M31 24V11M27.8 9.5L31 13L34.2 9.5M31 13V8\"/></g><g transform=\"rotate(210 31 26)\"><path d=\"M31 24V11M27.8 9.5L31 13L34.2 9.5M31 13V8\"/></g><g transform=\"rotate(240 31 26)\"><path d=\"M31 24V11M27.8 9.5L31 13L34.2 9.5M31 13V8\"/></g><g transform=\"rotate(270 31 26)\"><path d=\"M31 24V11M27.8 9.5L31 13L34.2 9.5M31 13V8\"/></g><g transform=\"rotate(300 31 26)\"><path d=\"M31 24V11M27.8 9.5L31 13L34.2 9.5M31 13V8\"/></g><g transform=\"rotate(330 31 26)\"><path d=\"M31 24V11M27.8 9.5L31 13L34.2 9.5M31 13V8\"/></g></g> <circle cx=\"31\" cy=\"26\" r=\"2.6\" fill=\"currentColor\" stroke=\"none\"/></g>") },
+  { k: '毛線球', svg: SVG("<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"> <defs><clipPath id=\"yarn-edge\"><circle cx=\"30\" cy=\"30\" r=\"21\"/></clipPath></defs> <path d=\"M46 43C46 53 56 44 57 50C58 55 50 57 45 53\"/> <circle cx=\"30\" cy=\"30\" r=\"21\" fill=\"#FFF\" stroke=\"none\"/> <g clip-path=\"url(#yarn-edge)\"> <path d=\"M29 9C25 12 23 15 20 22M39 11C34 14 31 18 27 26M47 18C41 19 37 23 33 32M51 27C47 27 43 29 38 38M12 40Q20 38 27 31M19 48Q25 46 32 37\"/> <path fill=\"#FFF\" stroke=\"none\" d=\"M17 14C32 18 44 30 47 42L35 50C32 40 21 29 9 28Z\"/> <path d=\"M17 14C32 18 44 30 47 42M12 20C26 22 39 35 42 47M9 28C21 29 32 40 35 50\"/> </g> <circle cx=\"30\" cy=\"30\" r=\"21\"/></g>") },
+  { k: '雪花冰', svg: SVG("<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"> <path fill=\"#FFF\" d=\"M43 21L50 10C53 5 59 10 56 14L46 27Z\"/> <path fill=\"#FFF\" d=\"M10 32L22 15C27 6 37 6 43 15L54 32Z\"/> <path d=\"M16 23C20 25 22 20 27 22S33 25 37 22S44 25 48 23\"/> <path fill=\"#FFF\" d=\"M23 53H41V57H23Z\"/> <path fill=\"#FFF\" d=\"M8 32H56V38C56 48 48 53 41 53H23C15 53 8 48 8 38Z\"/></g>") }
+];
+const OWN_SVG = SVG("<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"> <circle cx=\"32\" cy=\"31\" r=\"21\" stroke-dasharray=\"3 3.8\" stroke-width=\"2\"/> <path d=\"M26 25C26 18 38 18 38 25C38 30 32 30 32 35\"/> <circle cx=\"32\" cy=\"41\" r=\"1.4\" fill=\"currentColor\" stroke=\"none\"/></g>");
+
+/* ============================================================
+   描寫標籤與課文摘句（依課本「語文讀寫」：數量、顏色、外形、大小；另加感覺、比喻）
+   ============================================================ */
+const TAGS = { num: '數量', color: '顏色', shape: '外形', size: '大小', sense: '感覺', meta: '比喻' };
+const TAG_ORDER = ['num', 'color', 'shape', 'size', 'sense', 'meta'];
+// 摘句（文字以課本為準）：字串為一般文字；陣列為 [文字, 標籤, 真實參照的鏡頭視角]
+const QUOTES = {
+  open: ['每逢初夏，……那賣棉花糖的老人，便也開始自得其樂的在樹下，標售起', ['一朵一朵', 'num'], ['蓬鬆', 'shape'], ['若雲', 'meta'], '的棉花糖了。'],
+  spinner: ['製糖機器中央那', ['神祕的黑洞', 'meta', 'spinnerFocus']],
+  bowl: [['一塊', 'num'], ['長形呈帶狀', 'shape', 'bowlFocus'], '的鋁製薄片，圍繞成', ['圓形劇場', 'meta', 'bowlFocus'], '的形狀'],
+  shield: [['透明', 'color', 'shieldFocus'], '的防風玻璃板'],
+  motor: ['一座被安置在腳踏車後座的', ['小型', 'size', 'overview'], ['流動工廠', 'meta', 'overview']],
+  sugar: ['他只是以', ['一小勺', 'num', 'closeTop'], ['雪白晶瑩', 'color', 'closeTop'], '的砂糖粒'],
+  particles: ['於是，', ['一顆顆', 'num', 'closeTop'], ['透明', 'color', 'closeTop'], ['細小', 'size', 'closeTop'], '的粒子……'],
+  threads: ['便被抽成', ['纖纖裊裊', 'shape', 'bowlTop'], '、', ['若有若無', 'shape', 'bowlTop'], '的糖絲'],
+  weaver: ['賣棉花糖的老者，便成了', ['捕雲、網雲、巧手織雲的人', 'meta'], '了。'],
+  tools: ['但他不用', ['飛梭', 'meta'], '，不用', ['紡車', 'meta'], '，也不去織出整齊的', ['經緯', 'meta'], '……'],
+  stick: ['也開始在', ['細細', 'size', 'candy'], '的木棒上，糾結聚集成另一種美好的形狀了。'],
+  sculpt: ['面對那樣神奇速成的', ['立體編塑', 'meta', 'candy'], '，那樣', ['一縷一縷', 'num', 'candy'], ['剪裁合度', 'shape', 'candy'], '的', ['白雲', 'meta', 'candy']],
+  craft: ['做棉花糖，實在是一種', ['詩意盎然的袖珍手工業', 'meta', 'overview'], '，是', ['可愛的街頭藝術', 'meta'], '，也是', ['極富喜劇效果的魔術', 'meta'], '。'],
+  sunflower: ['當人家院牆角落的', ['幾株', 'num'], '向日葵，像', ['一輪輪', 'num'], ['金黃', 'color'], '的', ['圓盤', 'meta']]
+};
+const uSpan = (text, tag, ref) => `<span class="u u-${tag}" data-tag="${tag}" data-label="${TAGS[tag]}"${ref ? ` data-ref="${ref}"` : ''} tabindex="0">${esc(text)}</span>`;
+function quote(key, opts = {}) {
+  const segs = QUOTES[key];
+  const tags = TAG_ORDER.filter(t => segs.some(x => Array.isArray(x) && x[1] === t));
+  const body = segs.map(x => (Array.isArray(x) ? uSpan(x[0], x[1], x[2]) : esc(x))).join('');
+  const filter = opts.plain ? '' : `<div class="qtags" role="group" aria-label="依描寫技法篩選">${tags.map(t => `<button type="button" class="tc-${t}" data-act="qf" data-arg="${t}">${TAGS[t]}</button>`).join('')}</div>`;
+  return `<blockquote class="quote">${filter}<p>${body}</p></blockquote>`;
+}
+// 點劃線：顯示標籤小牌；若對應場景中的實物，鏡頭轉過去（真實參照）
+function onUnderline(u) {
+  const was = u.classList.contains('show');
+  document.querySelectorAll('.u.show').forEach(x => x.classList.remove('show'));
+  if (was) return;
+  u.classList.add('show');
+  const ref = u.dataset.ref;
+  if (ref && controls.enabled && CAM[ref]) goView(ref);
+}
+
+// 作者的想像：在製作過程中逐一收集，描寫時拼成完整地圖
+const IMAG = {
+  machine: { name: '機器', idea: '圓形劇場、小型流動工廠', seen: '圍成圓形的鋁製薄片，放在腳踏車後座', q: ['bowl', 'motor'], ref: 'bowlFocus' },
+  tools: { name: '工具與動作', idea: '不用飛梭、紡車，也不織整齊的經緯', seen: '只用一小勺砂糖，加熱、旋轉、攪拌', q: ['tools', 'sugar'], ref: 'spinnerFocus' },
+  maker: { name: '做的人', idea: '捕雲、網雲、巧手織雲的人', seen: '賣棉花糖的老人，一朵一朵做出棉花糖', q: ['weaver'], ref: 'candy' },
+  product: { name: '成品', idea: '剪裁合度的白雲、立體編塑', seen: '糖絲纏在木棒上，聚成一團棉花糖。', q: ['sculpt'], ref: 'candy' },
+  craft: { name: '這件事', idea: '袖珍手工業、街頭藝術、魔術', seen: '用小機器，很快就能做出棉花糖。', q: ['craft'], ref: 'overview' }
+};
+const IMAG_KEYS = Object.keys(IMAG);
+function collectImag(k) {
+  if (S.imag.includes(k)) return;
+  S.imag.push(k);
+  renderImag();
+  chime(1319, 0.5, 0.08);
+  const pill = $('#imagToggle');
+  pill.classList.remove('bump'); void pill.offsetWidth; pill.classList.add('bump');
+}
+const metaSpan = text => `<span class="u u-meta" data-tag="meta" data-label="比喻">${esc(text)}</span>`;
+const authorCore = { idea: '棉花糖 → 雲', words: `${uSpan('蓬鬆若雲', 'meta', 'candy')}、${uSpan('祥雲', 'meta', 'candy')}、${uSpan('白雲', 'meta', 'candy')}`, seen: '白白、蓬鬆的一團' };
+function authorNodes(keys) {
+  return keys.map(k => {
+    const d = IMAG[k];
+    return {
+      k, name: d.name, ideaHTML: metaSpan(d.idea), seen: d.seen, open: S.mapOpened.has(k),
+      detail: `${d.q.map(q => quote(q, { plain: true })).join('')}<p class="seen">看到：${esc(d.seen)}</p>${d.note ? `<p class="note">${d.note}</p>` : ''}`
+    };
+  });
+}
+function mapHTML({ core, nodes, interactive, grow }) {
+  const node = n => {
+    if (n.empty) return `<button type="button" class="inode empty" data-act="${n.act}" data-arg="${n.k}"><span class="iname">${esc(n.name)}</span><span>還可以想想……</span></button>`;
+    if (interactive) return `<button type="button" class="inode btnnode ${n.open ? 'open' : ''}" data-act="mapNode" data-arg="${n.k}" aria-expanded="${!!n.open}"><span class="iname">${esc(n.name)}</span><span class="iidea">${n.ideaHTML}</span></button>${n.open ? `<div class="idetail">${n.detail}</div>` : ''}`;
+    return `<div class="inode" data-k="${n.k}"><span class="iname">${esc(n.name)}</span><span class="iidea">${n.ideaHTML}</span>${n.seen ? `<span class="seen">看到：${esc(n.seen)}</span>` : ''}</div>`;
+  };
+  return `<div class="imap ${grow ? 'grow' : ''}">
+    <div class="inode core"><span class="iname">把棉花糖比作什麼</span><b>${esc(core.idea)}</b>${core.words ? `<span class="iidea">${core.words}</span>` : ''}<span class="seen">看到：${esc(core.seen)}</span></div>
+    <ul class="ibranches">${nodes.map((n, i) => `<li style="--i:${i}">${node(n)}</li>`).join('')}</ul></div>`;
+}
+function renderImag() {
+  $('#imagCount').textContent = $('#imagCount2').textContent = `${S.imag.length}/5`;
+  const hasMine = !!S.assoc;
+  if (!hasMine) S.imagTab = 'author';
+  const seg = hasMine ? `<div class="seg" role="tablist"><button type="button" role="tab" data-tab="author" class="${S.imagTab !== 'mine' ? 'on' : ''}">作者的想像</button><button type="button" role="tab" data-tab="mine" class="${S.imagTab === 'mine' ? 'on' : ''}">我的想像</button></div>` : '';
+  if (hasMine && S.imagTab === 'mine') {
+    const mineNodes = EXT.map(x => (S.ext[x.k].trim() ? { k: x.k, name: x.name, ideaHTML: metaSpan(S.ext[x.k].trim()) } : { k: x.k, name: x.name, empty: true, act: 'toExt' }));
+    $('#imagBody').innerHTML = `${seg}${mapHTML({ core: { idea: `棉花糖 → ${assocLabel()}`, seen: S.obsPick.join('、') || '—' }, nodes: mineNodes, interactive: false })}`;
+    return;
+  }
+  const nodes = IMAG_KEYS.map(k => {
+    const d = IMAG[k];
+    if (!S.imag.includes(k)) return `<li><div class="inode locked"><span class="iname">${esc(d.name)}</span><span class="iidea">製作棉花糖時會收集到</span></div></li>`;
+    return `<li><div class="inode" data-k="${k}"><span class="iname">${esc(d.name)}</span><span class="iidea">${metaSpan(d.idea)}</span></div>
+      <div class="idetail">${d.q.map(q => quote(q, { plain: true })).join('')}<p class="seen">看到：${esc(d.seen)}</p>${d.note ? `<p class="note">${d.note}</p>` : ''}</div></li>`;
+  }).join('');
+  $('#imagBody').innerHTML = `${seg}<p class="note">作者把棉花糖想成雲，再聯想到做棉花糖的人、工具和動作。</p>
+    <div class="imap"><div class="inode core"><span class="iname">把棉花糖比作什麼</span><b>${esc(authorCore.idea)}</b><span class="iidea">${authorCore.words}</span><span class="seen">看到：${esc(authorCore.seen)}</span></div>
+    <ul class="ibranches">${nodes}</ul></div>`;
+}
+
+// 觀察詞（依標籤分組）與自動劃線
+const POUR_NAME = { 粉紅: '粉紅', 紫: '淡紫', 藍: '淺藍', 橘: '淡橘', 黃: '淺黃', 綠: '淺綠' };
+const countWord = () => ['一小勺', '兩小勺', '三小勺'].at(Math.max(0, S.pours.length - 1));
+const pourColorNames = () => [...new Set(S.pours.map(k => POUR_NAME[k]))];
+function candyWordGroups() {
+  return [
+    ['num', ['一支', '一大團']], // 會插在「棉花糖」前：一支粉粉的棉花糖
+    ['color', [...colorWords(), '柔和的', '鮮豔的', ...(S.pours.length > 1 ? ['一層一層的顏色'] : [])]],
+    ['shape', [...SHAPE_WORDS[C.shape || '圓潤'], '蓬鬆', '一絲一絲']],
+    ['size', ['大大的', '比拳頭還大']],
+    ['sense', ['軟綿綿', '輕飄飄', '甜甜的']]
+  ];
+}
+const pickTag = w => (candyWordGroups().find(([, ws]) => ws.includes(w)) || ['shape'])[0];
+function tagDict() {
+  const d = [];
+  candyWordGroups().forEach(([t, ws]) => ws.forEach(w => d.push({ w, t })));
+  Object.keys(WORD_CAT).forEach(w => d.push({ w, t: WORD_CAT[w] }));
+  Object.values(COLOR_WORD).forEach(w => d.push({ w, t: 'color' }));
+  Object.values(SHAPE_WORDS).flat().forEach(w => d.push({ w, t: 'shape' }));
+  const like = assocLabel();
+  if (like && like !== '＿＿') d.push({ w: like, t: 'meta' });
+  Object.values(S.ext).forEach(v => { if (v.trim()) d.push({ w: v.trim(), t: 'meta' }); });
+  return d.sort((a, b) => b.w.length - a.w.length);
+}
+function autoTag(text) {
+  const marks = [];
+  const free = (a, b) => !marks.some(m => a < m.e && b > m.s);
+  tagDict().forEach(({ w, t }) => {
+    let i = 0;
+    while ((i = text.indexOf(w, i)) >= 0) { const e = i + w.length; if (free(i, e)) marks.push({ s: i, e, t }); i = e; }
+  });
+  const qre = /[一二兩三四五六七八九十幾好]+(?:小勺|勺|支|團|朵|層|顆|縷)/g;
+  let m;
+  while ((m = qre.exec(text))) { const a = m.index, b = a + m[0].length; if (free(a, b)) marks.push({ s: a, e: b, t: 'num' }); }
+  marks.sort((a, b) => a.s - b.s);
+  let html = '', p = 0;
+  marks.forEach(k => { html += esc(text.slice(p, k.s)) + uSpan(text.slice(k.s, k.e), k.t); p = k.e; });
+  html += esc(text.slice(p));
+  return { html, tags: new Set(marks.map(k => k.t)), words: marks.map(k => ({ w: text.slice(k.s, k.e), t: k.t })) };
+}
+const obsTagCount = text => [...autoTag(text).tags].filter(t => t !== 'meta').length;
+
+// 延伸想像：照作者「織雲」的延伸路線設計
+const EXT = [
+  { k: 'maker', name: '做的人', pre: '做棉花糖的我，就像', post: '。', ph: '', author: '賣棉花糖的老者，便成了捕雲、網雲、巧手織雲的人' },
+  { k: 'tools', name: '動作', pre: '我拿著木棒繞呀繞，好像在', post: '。', ph: '', author: '他不用飛梭，不用紡車，也不去織出整齊的經緯' },
+  { k: 'product', name: '成品', pre: '我的棉花糖是', post: '。', ph: '', author: '一縷一縷剪裁合度的白雲、神奇速成的立體編塑' },
+  { k: 'craft', name: '這件事', pre: '做棉花糖，真是一種', post: '。', ph: '', author: '詩意盎然的袖珍手工業、可愛的街頭藝術、極富喜劇效果的魔術' }
+];
+const HINTS = {
+  白雲: ['天空', '風', '抓雲', '雲朵工廠'], 綿羊: ['牧羊人', '剪羊毛', '羊毛氈', '牧場'], 枕頭: ['縫', '羽毛', '做夢', '棉被'],
+  蒲公英: ['吹', '種子', '飄', '小傘'], 毛線球: ['編織', '毛線', '打毛衣', '纏繞'], 雪花冰: ['刨冰', '冰山', '下雪', '堆雪人']
+};
+const extCount = () => EXT.filter(x => S.ext[x.k].trim()).length;
+const TIP = { color: '它是什麼顏色？', size: '它有多大？', num: '有幾支或幾團棉花糖？', shape: '它是什麼形狀？', sense: '你覺得摸起來、吃起來會是什麼感覺？' };
+function missingTip() {
+  const has = autoTag(S.sentence2).tags;
+  const t = ['color', 'size', 'num', 'shape', 'sense'].find(x => !has.has(x));
+  return t ? TIP[t] : '再加一個你觀察到的特點。';
+}
+const CHECKS = ['我寫出了棉花糖和比喻的事物哪裡相像。', '我後面寫的句子，都和選的比喻有關。', '我描寫了至少兩類特點，例如顏色和外形。'];
+const AUTHOR_FAV = ['雪白晶瑩', '纖纖裊裊', '若有若無', '柔軟甜蜜', '祥雲', '神祕的黑洞', '圓形劇場', '巧手織雲', '立體編塑', '袖珍手工業'];
+function resetDescribe() {
+  Object.assign(S, {
+    obsPick: [], assoc: null, assocCustom: '', reason: '', asked: false,
+    mapOpened: new Set(), mapSeen: new Set(), sentence1: '', sentence2: '', caret2: 0, asked4: false,
+    ext: { maker: '', tools: '', product: '', craft: '' }, askedExt: false, showHints: false,
+    check: [false, false, false], favMine: null, favAuthor: null, extIdx: 0
+  });
+}
+
+function addWords(ws) {
+  const before = S.bag.length;
+  ws.forEach(w => { if (w && !S.bag.includes(w)) S.bag.push(w); });
+  renderBag();
+}
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => toastEl.classList.remove('show'), 2600);
+}
+const assocLabel = () => (S.assoc === '__own' ? S.assocCustom.trim() : S.assoc) || '＿＿';
+function obsWordsIn(text) {
+  const words = [...new Set([...S.obsPick, ...Object.values(SHAPE_WORDS).flat(), ...CANDY_GENERAL, ...Object.values(COLOR_WORD)])];
+  return words.filter(w => text.includes(w));
+}
+const hasObs = text => obsTagCount(text) > 0 || KEYCHARS.some(c => text.includes(c));
+
+/* ============================================================
+   聲音：以 Web Audio 合成糖粒落下的沙沙聲
+   ============================================================ */
+let actx = null;
+function audio() {
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+  } catch (e) { actx = null; }
+  return actx;
+}
+let soundOn = true, humG = null, whirrO = null, whirrG = null;
+function ensureLoops() {
+  const a = audio();
+  if (!a || humG) return;
+  const hum = a.createOscillator(); hum.type = 'sawtooth'; hum.frequency.value = 55;
+  const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 240;
+  humG = a.createGain(); humG.gain.value = 0;
+  hum.connect(lp).connect(humG).connect(a.destination); hum.start();
+  whirrO = a.createOscillator(); whirrO.type = 'triangle'; whirrO.frequency.value = 110;
+  whirrG = a.createGain(); whirrG.gain.value = 0;
+  whirrO.connect(whirrG).connect(a.destination); whirrO.start();
+}
+function chime(f = 880, d = 0.6, v = 0.12) {
+  if (!soundOn || !actx) return;
+  const a = actx, o = a.createOscillator(), g = a.createGain();
+  o.type = 'sine'; o.frequency.value = f;
+  g.gain.setValueAtTime(v, a.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + d);
+  o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime + d);
+}
+const sparkle = () => [1047, 1319, 1568, 2093].forEach((f, i) => setTimeout(() => chime(f, 0.6, 0.08), i * 90));
+function updateLoops() {
+  if (!actx || !humG) return;
+  const now = actx.currentTime;
+  humG.gain.setTargetAtTime(soundOn && S.state === 'S3a' && S.holding ? 0.07 : 0, now, 0.08);
+  whirrG.gain.setTargetAtTime(soundOn ? S.level * 0.045 : 0, now, 0.1);
+  whirrO.frequency.setTargetAtTime(110 + S.level * 480, now, 0.1);
+}
+function playSand(dur = 1.5) {
+  if (!soundOn) return;
+  const a = audio();
+  if (!a) return;
+  const len = Math.floor(a.sampleRate * dur);
+  const buf = a.createBuffer(1, len, a.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / len;
+    const env = Math.min(1, t * 10) * Math.min(1, (1 - t) * 3);
+    const grain = Math.random() < 0.06 ? (Math.random() * 2 - 1) : (Math.random() * 2 - 1) * 0.12;
+    d[i] = grain * env;
+  }
+  const src = a.createBufferSource();
+  src.buffer = buf;
+  const bp = a.createBiquadFilter();
+  bp.type = 'bandpass'; bp.frequency.value = 4800; bp.Q.value = 0.9;
+  const g = a.createGain();
+  g.gain.value = 0.9;
+  src.connect(bp).connect(g).connect(a.destination);
+  src.start();
+}
+
+/* ============================================================
+   場景狀態：每個階段開始時的 3D 樣貌
+   ============================================================ */
+function applyHeat(h) {
+  if (sugar.visible) {
+    placeHeap(h);
+    sugarMat.opacity = 1 - 0.75 * smooth(0.1, 1, h);
+    if (h >= 0.999) sugar.visible = false;
+  }
+  const ls = smooth(0.2, 1, h);
+  liquid.visible = h > 0.05;
+  liquid.scale.y = 0.01 + 0.12 * ls;
+  liquid.position.y = 0.15 + liquid.scale.y / 2;
+  liquidMat.opacity = 0.85 * smooth(0.1, 0.7, h);
+  holeMat.color.copy(HOLE_COLOR).lerp(HEAT_COLOR, 0.85 * h);
+  heatLight.intensity = 1.6 * h;
+}
+function applyThreads() {
+  for (let k = 0; k < THREAD_N; k++) {
+    const f = clamp(S.threadP * 1.4 - (k / THREAD_N) * 0.4, 0, 1);
+    threads[k].geometry.setDrawRange(0, Math.floor(f * TP));
+  }
+  threadMat.opacity = 0.85 * S.threadFade;
+  ringMat.opacity = 0.6 * smooth(0.3, 1, S.threadP) * S.threadFade;
+}
+function applyCandy() {
+  if (C.prog <= 0) { candyMesh.visible = false; return; }
+  candyMesh.visible = true;
+  const s = 0.1 + 0.52 * C.prog, f = C.flat, k = C.skew, d = C.dir;
+  candyMesh.scale.set(s * (1 + 0.38 * f), s * (1 - 0.42 * f), s * (1 + 0.38 * f));
+  candyMesh.position.set(Math.cos(d) * 0.42 * s * k, -0.1 * f * s, Math.sin(d) * 0.42 * s * k);
+  candyMesh.rotation.set(Math.sin(d) * 0.4 * k, 0, -Math.cos(d) * 0.4 * k);
+}
+function resetCandy() {
+  Object.assign(C, { prog: 0, acc: 0, flat: 0, skew: 0, dir: 0, flatT: 0, skewT: 0, samples: [], shape: null });
+  candyGroup.rotation.set(0, 0, 0);
+  applyCandy();
+}
+function finalizeShape() {
+  C.shape = C.skew > 0.5 ? '偏斜' : C.flat > 0.5 ? '扁平' : '圓潤';
+  C.flatT = C.shape === '扁平' ? 1 : C.shape === '偏斜' ? 0.15 : 0;
+  C.skewT = C.shape === '偏斜' ? 1 : 0;
+  C.prog = 1;
+}
+
+// 依倒糖順序上色：砂糖顆粒、糖液、糖絲、槽壁糖霧、棉花糖（由下而上分層）
+function applySugarColors() {
+  const c = new THREE.Color();
+  S.pours.forEach((k, b) => { c.setHex(SUGAR_HEX[k]); for (let i = b * BATCH; i < (b + 1) * BATCH; i++) sugar.setColorAt(i, c); });
+  if (sugar.instanceColor) sugar.instanceColor.needsUpdate = true;
+}
+function applyPourColors() {
+  const cols = (S.pours.length ? S.pours : [null]).map(k => (k ? new THREE.Color(SUGAR_HEX[k]) : WHITE.clone()));
+  const n = cols.length, avg = new THREE.Color(0, 0, 0);
+  cols.forEach(c => avg.add(c));
+  avg.multiplyScalar(1 / n);
+  liquidMat.color.copy(avg).lerp(WHITE, 0.45);
+  ringMat.color.copy(avg).lerp(WHITE, 0.3);
+  dropMat.color.copy(avg).lerp(WHITE, 0.3);
+  candyMat.sheenColor.copy(avg).lerp(WHITE, 0.6); // 絨光取各色的淡色平均
+  threads.forEach((ln, k) => {
+    const c = cols[k % n].clone().lerp(WHITE, 0.2), a = ln.geometry.attributes.color;
+    for (let j = 0; j < a.count; j++) a.setXYZ(j, c.r, c.g, c.b);
+    a.needsUpdate = true;
+  });
+  const pos = candyGeo.attributes.position, col = candyGeo.attributes.color, v = new V3(), c = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const t = clamp((v.y + 1.15) / 2.3 + 0.1 * Math.sin(Math.atan2(v.z, v.x) * 3 + v.y * 2), 0, 0.9999);
+    const f = t * n, idx = Math.floor(f), fr = f - idx;
+    c.copy(cols[idx]);
+    if (fr > 0.75 && idx + 1 < n) c.lerp(cols[idx + 1], (fr - 0.75) / 0.25 * 0.5);
+    if (fr < 0.25 && idx > 0) c.lerp(cols[idx - 1], (0.25 - fr) / 0.25 * 0.5);
+    col.setXYZ(i, c.r, c.g, c.b);
+  }
+  col.needsUpdate = true;
+}
+function tintSpoon() {
+  const el = document.getElementById('spoonSugar');
+  if (el) el.setAttribute('fill', SUGAR_CSS[S.sugarPick] || '#ffffff');
+}
+
+function setupStage(n) {
+  applyPourColors();
+  clearHighlights();
+  setBaseSeeThrough(false);
+  pour = null; lift = null;
+  spoon3d.visible = false;
+  S.heat = n >= 4 ? 1 : 0;
+  sugar.visible = n === 3;
+  sugarMat.opacity = 1;
+  if (n === 3) { applySugarColors(); placeHeap(0); }
+  applyHeat(S.heat);
+  S.threadP = n >= 5 ? 1 : 0;
+  S.threadFade = n >= 6 ? 0.2 : 1;
+  S.level = n === 5 ? 0.8 : 0;
+  S.sustain = 0;
+  applyThreads();
+  drops.forEach(d => { d.m.visible = false; });
+  if (n < 5) candyGroup.visible = false;
+  if (n === 5) { candyGroup.visible = false; resetCandy(); candyGroup.position.set(0, 0, 0); }
+  if (n === 6) {
+    if (!C.shape) { C.prog = 1; finalizeShape(); }
+    C.flat = C.flatT; C.skew = C.skewT;
+    applyCandy();
+    candyGroup.visible = true;
+    candyGroup.position.set(0, 1.6, 0);
+  }
+  trail.length = 0;
+}
+
+/* ============================================================
+   狀態切換
+   ============================================================ */
+const ENTER = {
+  S0: () => goView('overview'),
+  S1: () => { goView('overview'); S.part = null; S.showQuote = false; buildOrbs(); },
+  S2a: () => { goView('closeTop'); },
+  S2b: () => { goView('closeTop'); showSpoon(); },
+  S2c: () => { S.flipped = false; addWords(['顆粒', '沙沙']); },
+  S3a: () => goView('closeTop'),
+  S3c: () => { S.sandAnswer = null; },
+  S4a: () => { goView('bowlTop'); S.level = 0; S.sustain = 0; G.omega = 0; },
+  S4b: () => { S.s4ask = false; S.s4answer = null; S.level = Math.max(S.level, 0.8); },
+  S5a: () => {
+    goView('bowlTop');
+    candyGroup.visible = true;
+    candyGroup.position.set(0.62, 0, 0);
+    S.lap = 0;
+  },
+  S5c: () => {
+    finalizeShape();
+    addWords([SHAPE_WORDS[C.shape][0], '蓬鬆']);
+    collectImag('product');
+    lift = { t: 0, from: candyGroup.position.clone(), to: new V3(0, 1.6, 0) };
+    goView('candy', 1.2);
+    sparkle();
+  },
+  S6a: () => { goView('candy'); buildFloatWords(); },
+  S6b: () => { collectImag('craft'); goView('candy'); },
+  S6e: () => { S.askedExt = false; },
+  S6f: () => goView('candy'),
+  S6g: () => { goView('candy'); requestAnimationFrame(printPolaroid); }
+};
+// 純操作完成後，停 1.5 秒讓學生看到結果，再自動前進
+function autoNext(to, delay = 1.5) { S.auto = { from: S.state, to, t: delay }; }
+
+function enter(st) {
+  S.state = st;
+  stateTime = 0;
+  S.fails = 0; S.helpOffered = false; S.hint1 = false;
+  S.autoSpin = false; S.autoCircle = false; S.holding = false;
+  stopGhost();
+  spoonTool.hidden = true; speedEl.hidden = true;
+  spoonTool.style.transform = '';
+  S.auto = null;
+  orbsEl.hidden = st !== 'S1';
+  bubbleEl.hidden = true;
+  dialEl.hidden = !['S3a', 'S4a', 'S5a'].includes(st);
+  dialEl.classList.toggle('spin', st !== 'S3a');
+  $('#dialMark').toggleAttribute('hidden', st !== 'S4a');
+  fwordsEl.hidden = st !== 'S6a';
+  const n = stageOf(st);
+  S.stage = n;
+  if (n > S.maxStage) S.maxStage = n;
+  controls.enabled = !CAM_LOCK.has(st);
+  viewHint.hidden = !controls.enabled;
+  (ENTER[st] || (() => {}))();
+  updateResetBtn();
+  renderPanel(true);
+  renderNav();
+  renderBag();
+  renderImag();
+  restartBtn.hidden = st === 'S0' || st === 'S6g';
+  $("#imagModal").hidden = true;
+  if (st !== 'S6g') $('#polaroid').hidden = true;
+  if (st === 'S6e') focusExt();
+  if (st === 'S6d') requestAnimationFrame(() => { const i = $('#why'); if (i) { i.focus({ preventScroll: true }); i.setSelectionRange(i.value.length, i.value.length); } });
+}
+function go(st) {
+  const n = stageOf(st);
+  if (n !== S.stage) setupStage(n);
+  enter(st);
+}
+function resetStageVars(n) {
+  if (n === 1) { S.seen.clear(); S.part = null; }
+  if (n === 2) { S.prediction = null; S.pours = []; S.pourPlan = []; S.sugarPick = '粉紅'; S.flipped = false; }
+  if (n === 3) { S.observed = []; S.sandAnswer = null; }
+  if (n === 4) S.s4answer = null;
+  if (n === 5) resetCandy();
+  if (n >= 5) resetDescribe();
+}
+function startStage(n) {
+  resetStageVars(n);
+  setupStage(n);
+  enter(FIRST[n]);
+}
+// 展示者跳關：自動補齊前面階段的結果
+function presenterJump(n) {
+  if (n > 1) { PART_ORDER.forEach(k => S.seen.add(k)); S.s1done = true; addWords(['圓形', '透明']); collectImag('machine'); }
+  if (n > 2) { if (!S.pours.length) { S.pours = ['粉紅', '紫', '藍']; S.pourPlan = [...S.pours]; } S.prediction = S.prediction || PRED[0]; addWords(['顆粒', '沙沙', countWord(), ...pourColorNames()]); collectImag('tools'); }
+  if (n > 3) { if (!S.observed.length) S.observed = ['變透明了', '會流動']; addWords(S.observed); }
+  if (n > 4) { addWords(['細絲', '飛散']); collectImag('maker'); }
+  if (n === 6 && !C.shape) { C.prog = 1; finalizeShape(); addWords([SHAPE_WORDS[C.shape][0], '蓬鬆']); }
+  if (n === 6) collectImag('product');
+  S.maxStage = Math.max(S.maxStage, n);
+  if (n === 6) { resetDescribe(); setupStage(6); enter('S6a'); }
+  else startStage(n);
+}
+
+/* ============================================================
+   教學面板
+   ============================================================ */
+const helpBtn = act => `<button class="btn" data-act="${act}">幫我完成</button>`;
+const OBS_GROUPS = [['color', ['變透明了', '融在一起']], ['shape', ['會流動', '黏在一起']]];
+const TITLES = {
+  S1: '認識棉花糖機', S2a: '選糖的顏色', S2b: '倒入砂糖', S2c: '作者怎麼寫', S2d: '先猜猜看',
+  S3a: '加熱融化', S3b: '觀察糖液', S3c: '還會沙沙響嗎？', S4a: '旋轉', S4b: '糖絲往哪裡跑？', S4c: '作者看到什麼',
+  S5a: '收集糖絲', S5c: '完成了！', S6a: '挑觀察詞', S6b: '作者的比喻', S6c: '它像什麼？', S6d: '因為……',
+  S6e: '延伸想像', S6f: '檢查我的描寫', S6g: '展示我的棉花糖'
+};
+const cta = (label, act, arg, on = true) => `<button class="btn primary" data-act="${act}"${arg ? ` data-arg="${arg}"` : ''}${on ? '' : ' disabled'}>${label}</button>`;
+const VIEWS = {
+  S0: () => `
+    <h2>童年夏日棉花糖</h2>
+    <p class="lead">動手做棉花糖，描寫它的模樣。</p>
+    ${cta('開始', 'start')}`,
+
+  S1: () => {
+    const p = S.part && PARTS_INFO[S.part];
+    return `
+    <p class="lead">點點看機器上發光的地方，認識四個零件。<span class="count">${S.seen.size} / 4</span></p>
+    ${p ? (S.showQuote ? quote(S.part, { plain: true }) + (S.part === 'motor' ? '<p class="note">課文把整台機器比喻成「小型流動工廠」。</p>' : '')
+      : `<button class="btn small" data-act="quote">看${p.label}的課文</button>`) : ''}
+    ${S.seen.size === 4 ? cta('開始做棉花糖', 'go', 'S2a') : ''}`;
+  },
+
+  S2a: () => `
+    <p class="lead">你想做什麼顏色的棉花糖呢？依照想要的順序，選擇最多三種顏色。</p>
+    <div class="swatches">${SUGARS.map(c => { const i = S.pourPlan.indexOf(c.k); return `<button class="chip swatch ${i >= 0 ? 'on' : ''}" data-act="plan" data-arg="${c.k}" style="--c:${c.css}" aria-pressed="${i >= 0}"><i></i>${c.k}${i >= 0 ? `<em>${i + 1}</em>` : ''}</button>`; }).join('')}</div>
+    ${cta('選好了', 'go', 'S2b', S.pourPlan.length > 0)}`,
+
+  S2b: () => {
+    const done = S.pours.length >= S.pourPlan.length;
+    return `
+    <p class="lead">${done ? '糖都倒進去了！' : '把勺子拖到加熱頭上。'}<span class="count">${S.pours.length} / ${S.pourPlan.length}</span></p>
+    ${S.fails >= 3 && !done && !pour ? helpBtn('helpSpoon') : ''}`;
+  },
+
+  S2c: () => `
+    <p class="lead">作者描寫了糖的數量和顏色，點擊看看你選的是什麼？</p>
+    <div class="flip ${S.flipped ? 'on' : ''}" data-act="flip" role="button" tabindex="0" aria-pressed="${!!S.flipped}">
+      <div class="flip-in">
+        <div class="face front"><span class="k">課文</span>${quote('sugar', { plain: true })}</div>
+        <div class="face back"><span class="k">我選的顏色</span>
+          <blockquote class="quote"><p>我倒了${uSpan(countWord(), 'num', 'closeTop')}${pourColorNames().map(c => uSpan(c, 'color', 'closeTop')).join('、')}的砂糖粒</p></blockquote>
+          <p class="caption">你會怎麼描寫這些顏色？</p></div>
+      </div>
+    </div>
+    ${S.flipped ? cta('下一步', 'go', 'S2d') : ''}`,
+
+  S2d: () => `
+    <p class="lead">猜猜看，糖粒加熱後會變成什麼？</p>
+    <div class="opts">${PRED.map(o => `<button class="opt ${S.prediction === o ? 'on' : ''}" data-act="pred" data-arg="${o}">${o}</button>`).join('')}</div>
+    ${S.prediction ? cta('開始加熱', 'go', 'S3a') : ''}`,
+
+  S3a: () => `
+    <p class="lead">${S.heat >= 1 ? '糖融化成糖液了！' : '按住加熱頭，看看糖粒有什麼變化。'}</p>
+    <p id="live" class="live" aria-live="polite"></p>`,
+
+  S3b: () => `
+    <p class="lead">糖粒有哪些變化？可以複選。</p>
+    ${OBS_GROUPS.map(([t, ws]) => `<div class="picks-group"><span class="grp-label tc-${t}">${TAGS[t]}</span>
+      <div class="chips">${ws.map(o => `<button class="chip tc-${t} ${S.observed.includes(o) ? 'on' : ''}" data-act="obs3" data-arg="${o}">${o}</button>`).join('')}${t === 'shape' ? `<button class="chip ${S.observed.includes('沒有變化') ? 'on' : ''}" data-act="obs3" data-arg="沒有變化">沒有變化</button>` : ''}</div></div>`).join('')}
+    ${cta('確定', 'obs3done', '', S.observed.length > 0)}`,
+
+  S3c: () => `
+    <p class="note">你的預測：${esc(S.prediction || '—')}<br>你看到的：${esc(S.observed.join('、') || '—')}</p>
+    <p class="lead">剛才倒糖時聽到沙沙聲，現在糖液還會沙沙響嗎？</p>
+    <div class="row"><button class="opt ${S.sandAnswer === 'yes' ? 'on' : ''}" data-act="sandq" data-arg="yes">會</button><button class="opt ${S.sandAnswer === 'no' ? 'on' : ''}" data-act="sandq" data-arg="no">不會</button></div>
+    ${S.sandAnswer ? `<p class="fb">${S.sandAnswer === 'no' ? '答對了！糖粒融化後，就沒有碰撞的沙沙聲了。' : '再想想，糖粒融化後，還有一粒粒的糖互相碰撞嗎？'}</p>
+      ${S.sandAnswer === 'no' ? quote('particles') : ''}
+      ${cta('讓它開始旋轉', 'go', 'S4a', S.sandAnswer === 'no')}` : ''}`,
+
+  S4a: () => `
+    <p class="lead">在盆子上方按住畫圈，直到糖絲飛出來。</p>
+    <p id="live" class="live" aria-live="polite"></p>
+    ${S.helpOffered ? '<button class="btn small" data-act="helpSpin">一起轉</button>' : ''}`,
+
+  S4b: () => `
+    <p class="lead">糖絲飛出來了！它們是怎麼從加熱頭跑到外面的呢？</p>
+    ${S.s4ask ? `<div class="opts">${S4OPT.map(o => `<button class="opt ${S.s4answer === o ? 'on' : ''}" data-act="s4" data-arg="${o}">${o}</button>`).join('')}</div>` : '<p class="note">先看看糖絲往哪裡跑……</p>'}
+    ${S.s4answer ? `<p class="fb">${S.s4answer === S4OPT[0] ? '答對了！加熱頭旋轉，把糖液從小洞甩出去。' : S.s4answer === S4OPT[1] ? '再試試看！剛才你是吹風，還是讓加熱頭轉動？' : '再試試看！糖絲是慢慢爬出來，還是一轉就飛出來？'}</p>
+      ${cta('下一步', 'go', 'S4c', S.s4answer === S4OPT[0])}` : ''}`,
+
+  S4c: () => `
+    <p class="lead">作者看到糖絲從中間飛出來，是這樣寫的：</p>
+    ${quote('threads')}
+    ${cta('拿木棒收集', 'go', 'S5a')}`,
+
+  S5a: () => `
+    <p class="lead">${C.prog >= 1 ? '糖絲收集好了！' : '按住木棒，沿著盆邊繞圈。'}<span class="count" id="lapCount">${Math.min(LAPS, S.lap || 0)} / ${LAPS} 圈</span></p>
+    <p id="live" class="live" aria-live="polite"></p>
+    ${S.helpOffered && C.prog < 1 ? helpBtn('helpCircle') : ''}`,
+
+  S5c: () => `
+    <p class="lead">你的棉花糖完成了！轉一轉、放大看，它是什麼樣子？</p>
+    ${quote('stick')}
+    <div class="duo"><button class="btn" data-act="remake">重做一支</button><button class="btn primary" data-act="go" data-arg="S6a">開始描寫</button></div>`,
+
+  S6a: () => {
+    const covered = new Set(S.obsPick.map(pickTag));
+    return `
+    <p class="lead">選出適合你的棉花糖的詞。顏色、外形、大小、數量、感覺，至少選兩項來描寫。</p>
+    <p class="note">已選 ${S.obsPick.length} 個詞，最多 4 個。<br>${covered.size ? '你選的詞描寫了：' + [...covered].map(t => TAGS[t]).join('、') : '尚未選詞'}</p>
+    ${cta('下一步', 'go', 'S6b', covered.size >= 2)}`;
+  },
+
+  S6b: () => `
+    <p class="lead">作者把棉花糖比作天上的白雲。</p>
+    ${quote('open', { plain: true })}
+    ${cta('我來想想', 'go', 'S6c')}`,
+
+  S6c: () => `
+    <p class="lead">你的棉花糖像什麼？選擇一個，或是自己寫寫看。</p>
+    <div class="assoc">
+      ${ASSOC.map(a => `<button class="acard ${S.assoc === a.k ? 'on' : ''}" data-act="assoc" data-arg="${a.k}">${a.svg}<span>${a.k}</span></button>`).join('')}
+      <button class="acard ${S.assoc === '__own' ? 'on' : ''}" data-act="assoc" data-arg="__own">${OWN_SVG}<span>我自己想</span></button>
+    </div>
+    ${S.assoc === '__own' ? `<input id="own" class="pill-in" style="width:100%" maxlength="12" placeholder="它像……" value="${esc(S.assocCustom)}">` : ''}
+    ${cta('下一步', 'assocNext', '', !!S.assoc)}`,
+
+  S6d: () => {
+    const like = esc(assocLabel());
+    return `
+    <p class="lead">棉花糖哪裡像${like}？點選下面的詞語，也可以直接輸入。</p>
+    <p class="frame2">我的棉花糖像<b>${like}</b>，因為它<input id="why" class="pill-in" maxlength="24" placeholder="……" value="${esc(S.reason)}" aria-label="因為它">。</p>
+    <div class="chips">${S.obsPick.map(w => `<button class="chip tc-${pickTag(w)}" data-act="ins" data-arg="${w}">${icon('plus')}${w}</button>`).join('')}</div>
+    ${S.asked ? `<div class="ask"><p>你在棉花糖上看到什麼，讓你覺得它像${like}？</p></div>` : ''}
+    ${cta('寫好了', 'reasonNext')}`;
+  },
+
+  S6e: () => {
+    const like = esc(assocLabel());
+    const idx = clamp(S.extIdx || 0, 0, EXT.length - 1), x = EXT[idx], last = idx === EXT.length - 1;
+    const h = HINTS[S.assoc];
+    return `
+    <p class="lead">順著「${like}」想一想，完成下面的句子。<span class="count">${idx + 1} / ${EXT.length}</span></p>
+    <div class="ext"><span class="iname">${x.name}</span><label class="line" for="ext-${x.k}">${x.pre}<span class="fill"><input id="ext-${x.k}" data-ext="${x.k}" value="${esc(S.ext[x.k])}" placeholder="${x.ph}" maxlength="20">${x.post}</span></label>
+      <p class="ex">作者：${esc(x.author)}</p></div>
+    <button class="btn small" data-act="hints">${S.showHints ? '收起提示' : '看提示'}</button>
+    ${S.showHints ? `<div class="hintbox">${h ? `<p>和「${like}」有關的詞：</p><div class="chips">${h.map(w => `<span class="hint">${w}</span>`).join('')}</div>` : '<p>想一想：它是誰做的？用什麼工具？會出現在哪裡？</p>'}</div>` : ''}
+    ${S.askedExt ? `<div class="ask"><p>讀一讀，這幾句都是從「${like}」聯想出來的嗎？</p></div>` : ''}
+    <button id="extNext" class="btn primary" data-act="next5" ${S.ext[x.k].trim() ? '' : 'disabled'}>${last ? '寫好了' : '下一步'}</button>`;
+  },
+
+  S6f: () => `
+    <p class="lead">讀一遍自己的描寫，做到的就打勾。</p>
+    <div class="result"><p class="sent">${autoTag(myPara()).html}</p></div>
+    <div class="parts checks">${CHECKS.map((c, i) => `<button type="button" class="pcell ${S.check[i] ? 'done' : ''}" data-act="chk" data-arg="${i}" aria-pressed="${!!S.check[i]}">
+      <span class="ck">${S.check[i] ? icon('check') : ''}</span>${c}</button>`).join('')}</div>
+    ${cta('展示我的棉花糖', 'go', 'S6g')}
+    <div class="duo"><button class="btn" data-act="go" data-arg="S6d">改寫句子</button><button class="btn" data-act="remake">再做一支</button></div>`,
+
+  S6g: () => `
+    <p class="lead">你的棉花糖拍立得印好了！想換個角度嗎？轉一轉棉花糖再拍一張。</p>
+    ${cta('再拍一張', 'polo')}
+    <div class="duo"><button class="btn" data-act="go" data-arg="S6f">回到我的描寫</button><button class="btn" data-act="remake">再做一支</button></div>`
+};
+const myPara = () => [S.sentence2, ...EXT.filter(x => S.ext[x.k].trim()).map(x => `${x.pre}${S.ext[x.k].trim()}${x.post}`)].join('');
+
+// mode：true 回到頂端；'keep' 保持捲動位置；其餘捲到底（新內容出現在下方）
+function renderPanel(mode = false) {
+  const top = pbody.scrollTop;
+  const v = VIEWS[S.state];
+  pbody.innerHTML = v ? v() : '';
+  const st = STEPS.find(x => S.stage >= x.from && S.stage <= x.to);
+  $('#pStep').textContent = st ? st.label : '';
+  $('#pTitle').textContent = TITLES[S.state] || '';
+  panelEl.classList.toggle('no-head', S.state === 'S0');
+  panelEl.classList.toggle('compact', COMPACT.has(S.state));
+  if (mode === true) pbody.scrollTop = 0;
+  else if (mode === 'keep') pbody.scrollTop = top;
+  else pbody.scrollTop = pbody.scrollHeight;
+}
+function renderNav() {
+  // 老師可以點任一階段跳過去（自動補齊前面的結果）
+  navEl.innerHTML = STEPS.map((s, i) => {
+    const cur = S.stage >= s.from && S.stage <= s.to;
+    const reached = S.maxStage >= s.from;
+    const cls = cur ? 'cur' : reached ? 'done' : '';
+    return `<button type="button" data-n="${s.from}" class="${cls}" ${cur ? 'aria-current="step"' : ''} title="跳到「${s.label}」">${i + 1} ${s.short}</button>`;
+  }).join('');
+}
+// 觀察詞分類：沿用描寫標籤（數量、顏色、外形、大小、感覺）
+const WORD_CAT = {
+  圓形: 'shape', 顆粒: 'shape', 細絲: 'shape', 飛散: 'shape', 蓬鬆: 'shape', 會流動: 'shape', 黏在一起: 'shape',
+  透明: 'color', 變透明了: 'color', 融在一起: 'color', 柔和的: 'color', 鮮豔的: 'color', 粉紅: 'color', 淡紫: 'color', 淺藍: 'color', 淡橘: 'color', 淺黃: 'color', 淺綠: 'color',
+  變小了: 'size', 變大了: 'size', 沙沙: 'sense', 一小勺: 'num', 兩小勺: 'num', 三小勺: 'num'
+};
+const CAT_ORDER = ['num', 'color', 'shape', 'size', 'sense'];
+const catOf = w => WORD_CAT[w] || (Object.values(COLOR_WORD).includes(w) ? 'color' : 'shape');
+function renderBag() {
+  if (!bagEl) return; // 觀察詞面板已移除，詞語仍記錄在 S.bag 供自動標示使用
+  const words = [...S.bag].sort((a, b) => CAT_ORDER.indexOf(catOf(a)) - CAT_ORDER.indexOf(catOf(b)));
+  bagEl.innerHTML = words.length
+    ? words.map(w => `<span class="w tc-${catOf(w)}" title="${TAGS[catOf(w)]}">${esc(w)}</span>`).join('')
+    : '<span class="empty">收集你在操作時所看到的現象</span>';
+  const counts = { num: 0, color: 0, shape: 0, size: 0, sense: 0 };
+  S.bag.forEach(w => { counts[catOf(w)]++; });
+  $('#bagCount').textContent = S.bag.length;
+  $('#bagDots').innerHTML = S.bag.length
+    ? CAT_ORDER.filter(c => counts[c]).map(c => `<span class="dc tc-${c}" title="${TAGS[c]}">${counts[c]}</span>`).join('')
+    : '<span>0</span>';
+}
+
+
+/* ============================================================
+   面板操作
+   ============================================================ */
+const ACT = {
+  start: () => { audio(); ensureLoops(); sparkle(); go('S1'); },
+  go: st => go(st),
+  part: k => selectPart(k),
+  quote: () => { S.showQuote = true; renderPanel(); },
+  helpSpoon: () => spoonSuccess(),
+  plan: k => {
+    const i = S.pourPlan.indexOf(k);
+    if (i >= 0) S.pourPlan.splice(i, 1);
+    else if (S.pourPlan.length >= MAX_POURS) { toast('最多選三種'); return; }
+    else S.pourPlan.push(k);
+    chime(i >= 0 ? 700 : 1175, 0.3, 0.06);
+    renderPanel('keep');
+  },
+  flip: () => { S.flipped = !S.flipped; chime(988, 0.3, 0.06); renderPanel('keep'); },
+  pred: o => { S.prediction = o; renderPanel(); },
+  obs3: o => {
+    const i = S.observed.indexOf(o);
+    if (i >= 0) S.observed.splice(i, 1); else S.observed.push(o);
+    renderPanel('keep');
+  },
+  obs3done: () => { addWords(S.observed.filter(w => w !== '沒有變化')); go('S3c'); },
+  sandq: a => { S.sandAnswer = a; renderPanel('keep'); },
+  helpSpin: () => { S.autoSpin = true; },
+  s4: o => {
+    const first = !S.s4answer;
+    S.s4answer = o;
+    if (first) { addWords(['細絲', '飛散']); collectImag('maker'); }
+    renderPanel();
+  },
+  helpCircle: () => { S.autoCircle = true; },
+  remake: () => startStage(5),
+  // 摘句上方的標籤篩選
+  qf: (t, b) => {
+    const q = b.closest('.quote');
+    const off = q.dataset.filter === t;
+    q.querySelectorAll('.qtags button').forEach(x => x.classList.toggle('on', !off && x.dataset.arg === t));
+    if (off) delete q.dataset.filter; else q.dataset.filter = t;
+  },
+  pick: w => {
+    const i = S.obsPick.indexOf(w);
+    if (i >= 0) S.obsPick.splice(i, 1);
+    else if (S.obsPick.length >= 4) { toast('最多選 4 個'); return; }
+    else S.obsPick.push(w);
+    chime(i >= 0 ? 700 : 1175, 0.3, 0.06);
+    fwordsEl.querySelectorAll('.fw').forEach(b => { const on = S.obsPick.includes(b.dataset.arg); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+    renderPanel('keep');
+  },
+  mapNode: k => {
+    if (S.mapOpened.has(k)) S.mapOpened.delete(k);
+    else { S.mapOpened.add(k); S.mapSeen.add(k); if (controls.enabled) goView(IMAG[k].ref); }
+    renderPanel('keep');
+  },
+  assoc: k => {
+    S.assoc = k;
+    renderPanel('keep');
+    if (k === '__own') { const el = $('#own'); if (el) el.focus(); }
+  },
+  assocNext: () => {
+    if (S.assoc === '__own' && !S.assocCustom.trim()) { toast('寫下棉花糖像什麼。'); return; }
+    S.asked = false;
+    go('S6d');
+  },
+  ins: w => {
+    const ta = $('#why');
+    const cur = ta.value.trim();
+    ta.value = cur ? `${cur.replace(/[，、。]$/, '')}、${w}` : w;
+    S.reason = ta.value;
+    ta.focus();
+  },
+  reasonNext: () => {
+    S.reason = ($('#why')?.value || '').trim();
+    if (!S.reason) { toast('寫下它們哪裡相像。'); return; }
+    if (!hasObs(S.reason) && !S.asked) { S.asked = true; renderPanel('keep'); return; }
+    toSentence1();
+  },
+  ins2: w => {
+    const ta = $('#sent2');
+    if (!ta) return;
+    const p = Math.min(S.caret2 ?? ta.value.length, ta.value.length);
+    ta.value = ta.value.slice(0, p) + w + ta.value.slice(p);
+    S.caret2 = p + w.length;
+    S.sentence2 = ta.value;
+    $('#preview2').innerHTML = autoTag(ta.value).html;
+    ta.focus();
+    ta.setSelectionRange(S.caret2, S.caret2);
+  },
+  focus2: () => { const ta = $('#sent2'); if (ta) ta.focus(); },
+  next4: () => {
+    S.sentence2 = ($('#sent2')?.value || '').trim();
+    if (!S.sentence2) { toast('寫好句子再繼續。'); return; }
+    if (obsTagCount(S.sentence2) <= obsTagCount(S.sentence1) && !S.asked4) { S.asked4 = true; renderPanel('keep'); return; }
+    go('S6e');
+  },
+  hints: () => { S.showHints = !S.showHints; renderPanel('keep'); },
+  next5: () => {
+    const idx = clamp(S.extIdx || 0, 0, EXT.length - 1);
+    if (!S.ext[EXT[idx].k].trim()) return;
+    if (idx < EXT.length - 1) { S.extIdx = idx + 1; S.showHints = false; renderPanel(); focusExt(); return; }
+    const words = [assocLabel(), ...(HINTS[S.assoc] || [])];
+    const related = EXT.some(x => { const v = S.ext[x.k]; return v.trim() && words.some(w => w && w !== '＿＿' && v.includes(w)); });
+    if (!related && !S.askedExt) { S.askedExt = true; renderPanel('keep'); return; }
+    go('S6f');
+  },
+  toExt: k => { const i = EXT.findIndex(x => x.k === k); S.extIdx = i >= 0 ? i : 0; go('S6e'); },
+  polo: () => printPolaroid(),
+  chk: i => { S.check[+i] = !S.check[+i]; renderPanel('keep'); },
+  favM: w => { S.favMine = w; renderPanel('keep'); },
+  favA: w => { S.favAuthor = w; renderPanel('keep'); }
+};
+function focusExt() {
+  requestAnimationFrame(() => { const el = pbody.querySelector('[data-ext]'); if (el) { el.focus({ preventScroll: true }); el.setSelectionRange(el.value.length, el.value.length); } });
+}
+// 句子：我的棉花糖像＿＿，因為它＿＿。
+function toSentence1() {
+  S.reason = ($('#why')?.value || S.reason).trim();
+  if (!S.reason) { toast('寫下它們哪裡相像。'); return; }
+  const like = assocLabel(), why = S.reason.replace(/^它/, '').replace(/[。！!？?]+$/, '');
+  S.sentence1 = `它像${like}，因為它${why}。`;
+  S.sentence2 = `我的棉花糖像${like}，因為它${why}。`;
+  S.asked = false;
+  S.extIdx = 0;
+  go('S6e');
+}
+pbody.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  const u = e.target.closest('.u');
+  if (u && !(b && b.contains(u))) { onUnderline(u); return; }
+  if (!b || b.disabled) return;
+  const f = ACT[b.dataset.act];
+  if (f) f(b.dataset.arg, b);
+});
+pbody.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('u')) { e.preventDefault(); onUnderline(e.target); }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('flip')) { e.preventDefault(); ACT.flip(); }
+});
+pbody.addEventListener('input', e => {
+  const t = e.target;
+  if (t.id === 'why') S.reason = t.value;
+  if (t.id === 'own') {
+    S.assocCustom = t.value;
+    const bl = pbody.querySelector('.blank');
+    if (bl) bl.textContent = t.value.trim() || '＿＿';
+  }
+  if (t.id === 'sent2') {
+    S.sentence2 = t.value;
+    S.caret2 = t.selectionStart;
+    const pv = $('#preview2');
+    if (pv) pv.innerHTML = autoTag(t.value).html;
+  }
+  if (t.dataset && t.dataset.ext) {
+    S.ext[t.dataset.ext] = t.value;
+    const nb = $('#extNext');
+    if (nb) nb.disabled = !t.value.trim();
+  }
+});
+pbody.addEventListener('change', e => {
+  if (e.target.dataset && e.target.dataset.check !== undefined) S.check[+e.target.dataset.check] = e.target.checked;
+});
+['click', 'keyup', 'select'].forEach(ev => pbody.addEventListener(ev, e => { if (e.target.id === 'sent2') S.caret2 = e.target.selectionStart; }));
+navEl.addEventListener('click', e => {
+  const b = e.target.closest('button[data-n]');
+  if (!b) return;
+  const n = +b.dataset.n;
+  if (n === 1) { setupStage(1); S.seen.clear(); S.part = null; S.s1done = false; enter('S1'); return; }
+  presenterJump(n);
+});
+// 上一步：描寫階段內逐頁返回；其餘回到上一個階段的開頭（製作棉花糖的倒糖、加熱、旋轉、收集各算一步）
+const S6_ORDER = ['S6a', 'S6b', 'S6c', 'S6d', 'S6e', 'S6f', 'S6g'];
+function goBack() {
+  const n = S.stage;
+  if (n === 6) {
+    if (S.state === 'S6e' && S.extIdx > 0) { S.extIdx--; S.showHints = false; S.askedExt = false; renderPanel(); focusExt(); return; }
+    const i = S6_ORDER.indexOf(S.state);
+    if (S.state === 'S6f') S.extIdx = EXT.length - 1;
+    if (i > 0) { enter(S6_ORDER[i - 1]); return; }
+    startStage(5);
+    return;
+  }
+  if (n === 1) { setupStage(0); enter('S0'); return; }
+  if (n === 2) { setupStage(1); enter('S1'); return; } // 保留已探索的零件
+  if (n > 2) startStage(n - 1);
+}
+restartBtn.addEventListener('click', goBack);
+$('#viewReset').addEventListener('click', () => goView('overview'));
+// 底部兩顆膠囊：觀察詞、作者的想像（一次只展開一張卡片）
+const imagToggle = $('#imagToggle');
+const imagModal = $('#imagModal');
+function setImagModal(open) {
+  imagModal.hidden = !open;
+  if (open) { renderImag(); $('#imagBody').scrollTop = 0; }
+  else imagToggle.focus({ preventScroll: true });
+}
+imagToggle.addEventListener('click', () => setImagModal(true));
+$('#imagClose').addEventListener('click', () => setImagModal(false));
+imagModal.addEventListener('click', e => {
+  if (e.target === imagModal) { setImagModal(false); return; }
+  const tb = e.target.closest('[data-tab]');
+  if (tb) { S.imagTab = tb.dataset.tab; renderImag(); return; }
+  const ab = e.target.closest('[data-act="toExt"]');
+  if (ab) { setImagModal(false); ACT.toExt(ab.dataset.arg); return; }
+  const u = e.target.closest('.u');
+  if (u) { onUnderline(u); return; }
+  const n = e.target.closest('[data-k]');
+  if (n && controls.enabled) goView(IMAG[n.dataset.k].ref);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !imagModal.hidden) setImagModal(false); });
+$('#pCollapse').addEventListener('click', () => {
+  const c = panelEl.classList.toggle('collapsed');
+  $('#pCollapse').setAttribute('aria-expanded', String(!c));
+  $('#pCollapse').setAttribute('aria-label', c ? '展開小卡' : '收合小卡');
+});
+$('#soundToggle').addEventListener('click', e => {
+  soundOn = !soundOn;
+  e.currentTarget.setAttribute('aria-pressed', String(soundOn));
+  if (soundOn) { audio(); ensureLoops(); chime(1047, 0.4, 0.08); }
+  updateLoops();
+});
+
+/* ============================================================
+   Stage 1：射線偵測點選零件
+   ============================================================ */
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+const gesturePlane = new THREE.Plane(new V3(0, 1, 0), -1.85);
+function setRay(e) {
+  const r = glEl.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+}
+function pick(e) {
+  setRay(e);
+  const hits = ray.intersectObjects(pickables, false);
+  if (!hits.length) return null;
+  const solid = hits.find(h => h.object.userData.part !== 'shield'); // 玻璃包住內部零件，優先選後方實心零件
+  return (solid || hits[0]).object.userData.part;
+}
+function buildOrbs() {
+  orbsEl.innerHTML = PART_ORDER.map(k => `<button type="button" class="orb ${S.seen.has(k) ? 'seen' : ''}" data-part="${k}" aria-label="${PARTS_INFO[k].label}"></button>`).join('');
+}
+orbsEl.addEventListener('click', e => { const b = e.target.closest('.orb'); if (b) selectPart(b.dataset.part); });
+function selectPart(k) {
+  if (!S.seen.has(k)) chime(880 + PART_ORDER.indexOf(k) * 220, 0.5, 0.1);
+  S.part = k;
+  S.showQuote = false;
+  S.seen.add(k);
+  buildOrbs();
+  orbsEl.querySelector(`[data-part="${k}"]`)?.classList.add('cur');
+  bubbleEl.innerHTML = `<b>${PARTS_INFO[k].label}</b><small>${PARTS_INFO[k].fn}</small>`;
+  bubbleEl.hidden = false;
+  bubbleEl.style.animation = 'none'; void bubbleEl.offsetWidth; bubbleEl.style.animation = '';
+  setBaseSeeThrough(k === 'motor');
+  goView(PART_VIEW[k]);
+  if (S.seen.size === 4 && !S.s1done) { S.s1done = true; addWords(['圓形', '透明']); collectImag('machine'); }
+  renderPanel();
+}
+
+/* ============================================================
+   畫圈手勢（Stage 4）與繞圈收集（Stage 5）
+   ============================================================ */
+const G = { active: false, lastAng: null, lastT: 0, omega: 0, down: null };
+const trail = [];
+function planePoint(e) {
+  setRay(e);
+  const p = new V3();
+  return ray.ray.intersectPlane(gesturePlane, p) ? p : null;
+}
+function feedAngle(p, now) {
+  const r = Math.hypot(p.x, p.z), ang = Math.atan2(p.z, p.x);
+  if (G.lastAng !== null && r > 0.25) {
+    let d = ang - G.lastAng;
+    while (d > Math.PI) d -= TAU;
+    while (d < -Math.PI) d += TAU;
+    const dt = Math.max(0.008, (now - G.lastT) / 1000);
+    G.omega = G.omega * 0.7 + (Math.abs(d) / dt) * 0.3;
+    if (S.state === 'S5a') C.acc += Math.min(Math.abs(d), 0.6);
+  }
+  G.lastAng = ang;
+  G.lastT = now;
+  if (S.state === 'S5a') {
+    const last = C.samples[C.samples.length - 1];
+    if (!last || Math.hypot(last.x - p.x, last.z - p.z) > 0.02) {
+      C.samples.push({ x: p.x, z: p.z });
+      if (C.samples.length > 160) C.samples.shift();
+    }
+  }
+}
+function stickTo(p) {
+  const r = Math.hypot(p.x, p.z);
+  if (r > 1.2) p.multiplyScalar(1.2 / r);
+  candyGroup.position.set(p.x, 0, p.z);
+}
+function addTrail(e) {
+  const r = stageEl.getBoundingClientRect();
+  trail.push({ x: e.clientX - r.left, y: e.clientY - r.top, t: T });
+  if (trail.length > 140) trail.shift();
+}
+glEl.addEventListener('pointerdown', e => {
+  G.down = { x: e.clientX, y: e.clientY };
+  if (S.state === 'S3a' && S.heat < 1) {
+    try { glEl.setPointerCapture(e.pointerId); } catch (err) { /* 略過 */ }
+    S.holding = true; G.heatPtr = e.pointerId; setLive('');
+    return;
+  }
+  if (S.state === 'S4a' || S.state === 'S5a') {
+    try { glEl.setPointerCapture(e.pointerId); } catch (err) { /* 略過 */ }
+    G.active = true;
+    G.lastAng = null;
+    G.lastT = performance.now();
+    if (S.state === 'S5a') { const p = planePoint(e); if (p) stickTo(p); }
+  }
+});
+glEl.addEventListener('pointermove', e => {
+  if (G.active) {
+    const p = planePoint(e);
+    if (!p) return;
+    feedAngle(p, performance.now());
+    if (S.state === 'S5a') stickTo(p);
+    addTrail(e);
+  } else if (S.state === 'S1' && e.pointerType === 'mouse') {
+    glEl.style.cursor = pick(e) ? 'pointer' : 'grab';
+  }
+});
+const endGesture = () => { G.active = false; };
+const endHeat = () => {
+  if (G.heatPtr === undefined) return;
+  G.heatPtr = undefined;
+  if (S.state === 'S3a' && S.holding) { S.holding = false; if (S.heat > 0 && S.heat < 1) setLive('加熱暫停，再按住就能繼續。'); }
+};
+glEl.addEventListener('pointerup', e => {
+  if (G.heatPtr !== undefined) { endHeat(); return; }
+  if (G.active) { endGesture(); return; }
+  if (S.state === 'S1' && G.down && Math.hypot(e.clientX - G.down.x, e.clientY - G.down.y) < 7) {
+    const k = pick(e);
+    if (k) selectPart(k);
+    else if (S.part) { S.part = null; bubbleEl.hidden = true; buildOrbs(); setBaseSeeThrough(false); goView('overview'); renderPanel(); }
+  }
+  G.down = null;
+});
+glEl.addEventListener('pointercancel', () => { endGesture(); endHeat(); });
+
+/* ============================================================
+   拖曳工具：銅勺（Stage 2）與木棒（Stage 5）
+   ============================================================ */
+const SPOON_T = new V3(0, 1.75, 0), SPOON_E = new V3(0.34, 1.75, 0);
+const BOWL_C = new V3(0, 1.85, 0), BOWL_E = new V3(1.2, 1.85, 0);
+let dragXY = null;
+function makeDraggable(el, onDrop) {
+  let sx = 0, sy = 0, drag = false;
+  el.addEventListener('pointerdown', e => {
+    drag = true;
+    sx = e.clientX; sy = e.clientY;
+    try { el.setPointerCapture(e.pointerId); } catch (err) { /* 略過 */ }
+    el.classList.add('dragging');
+    audio();
+    stopGhost();
+  });
+  el.addEventListener('pointermove', e => {
+    if (!drag) return;
+    el.style.transform = `translate(${e.clientX - sx}px, ${e.clientY - sy}px)`;
+    const r = stageEl.getBoundingClientRect();
+    dragXY = { x: e.clientX - r.left, y: e.clientY - r.top };
+  });
+  const end = e => {
+    if (!drag) return;
+    drag = false;
+    el.classList.remove('dragging');
+    const r = stageEl.getBoundingClientRect();
+    const ok = onDrop(e.clientX - r.left, e.clientY - r.top);
+    if (!ok) {
+      const from = el.style.transform || 'translate(0px, 0px)';
+      el.style.transform = '';
+      el.animate([{ transform: from }, { transform: 'translate(0px, 0px)' }], { duration: 280, easing: 'ease-out' });
+    }
+    dragXY = null;
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', () => { drag = false; el.classList.remove('dragging'); el.style.transform = ''; dragXY = null; });
+}
+function dropFail(msg, kind) {
+  S.fails++;
+  toast(msg);
+  if (S.fails >= 2) startGhost(kind);
+  if (S.fails === 3) renderPanel();
+}
+function showSpoon() {
+  const next = S.pourPlan[S.pours.length];
+  spoonTool.hidden = !next || !!pour;
+  spoonTool.style.transform = '';
+  if (next) { S.sugarPick = next; tintSpoon(); }
+}
+function spoonSuccess() {
+  if (S.pours.length >= S.pourPlan.length || pour) return;
+  S.pours.push(S.pourPlan[S.pours.length]);
+  spoonTool.hidden = true;
+  S.fails = 0;
+  stopGhost();
+  startPour();
+  playSand(1.2);
+  renderPanel('keep');
+}
+function afterPour() {
+  if (S.pours.length < S.pourPlan.length) { showSpoon(); renderPanel('keep'); return; }
+  addWords([countWord(), ...pourColorNames()]);
+  collectImag('tools');
+  renderPanel('keep');
+  autoNext('S2c');
+}
+makeDraggable(spoonTool, (x, y) => {
+  if (S.state !== 'S2b') return false;
+  const c = proj(SPOON_T), r = Math.max(44, dist2(c, proj(SPOON_E)) * 1.6);
+  if (Math.hypot(x - c.x, y - c.y) <= r) { spoonSuccess(); return true; }
+  dropFail('把勺子拖到機器中央的加熱頭。', 'spoon');
+  return false;
+});
+
+/* ============================================================
+   動態示範（失敗兩次後出現）
+   ============================================================ */
+let ghostAnim = null;
+function stopGhost() {
+  if (ghostAnim) { ghostAnim.cancel(); ghostAnim = null; }
+  ghostEl.hidden = true;
+  ghostEl.innerHTML = '';
+}
+function startGhost(kind) {
+  stopGhost();
+  const sr = stageEl.getBoundingClientRect();
+  if (kind === 'spoon' || kind === 'stick') {
+    const tool = spoonTool;
+    const tr = tool.getBoundingClientRect();
+    const x0 = tr.left - sr.left, y0 = tr.top - sr.top;
+    const tgt = proj(kind === 'spoon' ? SPOON_T : BOWL_C);
+    const x1 = tgt.x - tr.width / 2, y1 = tgt.y - tr.height / 2;
+    ghostEl.className = 'ghost tool-ghost';
+    ghostEl.innerHTML = tool.querySelector('svg').outerHTML;
+    ghostEl.hidden = false;
+    ghostAnim = ghostEl.animate([
+      { transform: `translate(${x0 + 14}px, ${y0 + 10}px)`, opacity: 0 },
+      { transform: `translate(${x0 + 14}px, ${y0 + 10}px)`, opacity: 0.6, offset: 0.15 },
+      { transform: `translate(${x1}px, ${y1}px)`, opacity: 0.6, offset: 0.8 },
+      { transform: `translate(${x1}px, ${y1}px)`, opacity: 0 }
+    ], { duration: 1900, iterations: Infinity });
+  } else {
+    const rr = kind === 'spin' ? 0.8 : 0.65;
+    const frames = [];
+    for (let i = 0; i <= 24; i++) {
+      const a = (i / 24) * TAU;
+      const p = proj(new V3(Math.cos(a) * rr, 1.85, Math.sin(a) * rr));
+      frames.push({ transform: `translate(${p.x - 15}px, ${p.y - 15}px)` });
+    }
+    ghostEl.className = 'ghost finger';
+    ghostEl.hidden = false;
+    ghostAnim = ghostEl.animate(frames, { duration: kind === 'spin' ? 1100 : 1800, iterations: Infinity });
+  }
+}
+
+/* ============================================================
+   倒糖動畫
+   ============================================================ */
+function startPour() {
+  const b = S.pours.length - 1;
+  pour = { t: 0, b };
+  if (b === 0) { for (let i = 0; i < SUGAR_N; i++) setSugar(i, heap[i], 0); }
+  applySugarColors();
+  sugar.visible = true;
+  sugarMat.opacity = 1;
+  spoon3d.visible = true;
+  spoon3d.rotation.z = 0;
+}
+function updatePour(dt) {
+  pour.t += dt;
+  spoon3d.rotation.z = Math.min(1, pour.t / 0.4) * 0.9;
+  for (let i = pour.b * BATCH; i < (pour.b + 1) * BATCH; i++) {
+    const tt = pour.t - (i - pour.b * BATCH) * 0.011;
+    if (tt < 0) { setSugar(i, starts[i], 0); continue; }
+    const f = Math.min(1, tt / 0.5);
+    const p = starts[i].clone().lerp(heap[i], f);
+    p.y = starts[i].y + (heap[i].y - starts[i].y) * f * f;
+    setSugar(i, p, 1);
+  }
+  sugar.instanceMatrix.needsUpdate = true;
+  if (pour.t > (BATCH - 1) * 0.011 + 0.75) {
+    spoon3d.visible = false;
+    pour = null;
+    afterPour();
+  }
+}
+
+/* ============================================================
+   疊層：目標光圈、畫圈導引、軌跡
+   ============================================================ */
+function show(el, on) { el.style.display = on ? '' : 'none'; }
+function drawGuide() {
+  const st = S.state;
+  show(gRing, (st === 'S2b' && !pour && !spoonTool.hidden) || (st === 'S3a' && S.heat < 1));
+  if (st === 'S2b' || st === 'S3a') {
+    const c = proj(SPOON_T), r = Math.max(26, dist2(c, proj(SPOON_E)));
+    gRing.setAttribute('cx', c.x); gRing.setAttribute('cy', c.y);
+    gRing.setAttribute('r', r + (reduceMotion ? 0 : Math.sin(T * 4) * 3));
+    gRing.classList.toggle('near', st === 'S3a' ? S.holding : !!dragXY && Math.hypot(dragXY.x - c.x, dragXY.y - c.y) <= Math.max(44, r * 1.6));
+  }
+  show(gSpin, st === 'S4a');
+  if (st === 'S4a') {
+    const pts = [];
+    for (let i = 0; i <= 30; i++) {
+      const a = (i / 36) * TAU;
+      const p = proj(new V3(Math.cos(a) * 0.85, 1.85, Math.sin(a) * 0.85));
+      pts.push(`${p.x.toFixed(1)},${p.y.toFixed(1)}`);
+    }
+    gSpin.setAttribute('points', pts.join(' '));
+  }
+  const bowlOn = st === 'S5a' && C.prog < 1;
+  show(gBowl, bowlOn);
+  if (bowlOn) {
+    const c = proj(BOWL_C), ex = proj(BOWL_E), ez = proj(new V3(0, 1.85, 1.2)), ez2 = proj(new V3(0, 1.85, -1.2));
+    gBowl.setAttribute('cx', c.x); gBowl.setAttribute('cy', (ez.y + ez2.y) / 2);
+    gBowl.setAttribute('rx', dist2(c, ex)); gBowl.setAttribute('ry', Math.abs(ez.y - ez2.y) / 2);
+    gBowl.classList.remove('near');
+  }
+}
+function drawTrail() {
+  trailCtx.clearRect(0, 0, W, H);
+  if (S.state !== 'S4a' && S.state !== 'S5a') return;
+  trailCtx.lineCap = 'round';
+  trailCtx.lineWidth = 5;
+  for (let i = 1; i < trail.length; i++) {
+    const a = trail[i - 1], b = trail[i];
+    const age = T - b.t;
+    if (age > 1.2 || T - a.t > 1.3) continue;
+    trailCtx.strokeStyle = `rgba(242, 84, 125, ${(1 - age / 1.2) * 0.55})`;
+    trailCtx.beginPath();
+    trailCtx.moveTo(a.x, a.y);
+    trailCtx.lineTo(b.x, b.y);
+    trailCtx.stroke();
+  }
+}
+
+/* ============================================================
+   每幀更新
+   ============================================================ */
+// 跟著 3D 物件移動的疊層：發光點、說明泡泡、溫度／轉速環、觀察詞
+function setDial(v, num, lbl) {
+  $('#dialFg').style.strokeDashoffset = 314.16 * (1 - clamp(v, 0, 1));
+  const nb = $('#dialNum'); if (nb.textContent !== num) nb.textContent = num;
+  const lb = $('#dialLbl'); if (lb.textContent !== lbl) lb.textContent = lbl;
+}
+$('#dialMark').setAttribute('transform', 'rotate(306 60 60)'); // 轉速 60% 的門檻
+function buildFloatWords() {
+  const words = candyWordGroups().flatMap(([t, ws]) => ws.map(w => ({ w, t })));
+  fwordsEl.innerHTML = words.map(({ w, t }, i) => `<button type="button" class="chip fw tc-${t} ${S.obsPick.includes(w) ? 'on' : ''}" data-arg="${w}" aria-pressed="${S.obsPick.includes(w)}" style="animation-delay:${i * 40}ms">${w}</button>`).join('');
+}
+fwordsEl.addEventListener('click', e => { const b = e.target.closest('.fw'); if (b && S.state === 'S6a') ACT.pick(b.dataset.arg); });
+const CANDY_C = new V3(0, 3.75, 0), CANDY_TOP = new V3(0, 4.7, 0), candyBox = new THREE.Box3(), candySphere = new THREE.Sphere();
+function placeOverlays() {
+  const st = S.state;
+  if (st === 'S1') {
+    // 特寫時，畫面外的發光點貼在邊緣，仍然點得到
+    const right = W / H > 1.05 ? W - panelEl.offsetWidth - 40 : W - 30;
+    for (const o of orbsEl.children) {
+      const p = proj(PART_ANCHOR[o.dataset.part]);
+      o.style.left = `${clamp(p.x, 30, right)}px`; o.style.top = `${clamp(p.y, 90, H - 30)}px`;
+    }
+    if (!bubbleEl.hidden && S.part) {
+      const p = proj(PART_ANCHOR[S.part]), bw = bubbleEl.offsetWidth / 2 + 12;
+      bubbleEl.style.left = `${clamp(p.x, bw, right + 10 - bw)}px`;
+      bubbleEl.style.top = `${clamp(p.y, 90 + bubbleEl.offsetHeight + 34, H - 30)}px`;
+    }
+  }
+  if (!dialEl.hidden) {
+    const a = proj(st === 'S3a' ? new V3(-0.75, 1.75, 0.25) : new V3(-1.5, 1.85, 0.3));
+    dialEl.style.left = `${clamp(a.x - 60, 70, W - 70)}px`;
+    dialEl.style.top = `${clamp(a.y, 120, H - 70)}px`;
+  }
+  if (st === 'S6a' && !fwordsEl.hidden) {
+    // 以棉花糖實際外框定中心與大小，詞卡繞著它排成橢圓
+    if (!(placeOverlays.tb > T)) { // 每半秒重算一次棉花糖外框（頂點會變形，需逐點計算）
+      placeOverlays.tb = T + 0.5;
+      candyBox.setFromObject(candyMesh, true).getBoundingSphere(candySphere);
+      CANDY_C.copy(candySphere.center);
+      CANDY_TOP.copy(candySphere.center).y += candySphere.radius * 0.8;
+    }
+    const c = proj(CANDY_C), e = proj(CANDY_TOP);
+    const r = Math.max(60, Math.abs(c.y - e.y));
+    const right = W / H > 1.05 ? W - panelEl.offsetWidth - 32 : W;
+    const rx = clamp(r * 2.2, 170, Math.max(170, Math.min(c.x - 70, right - c.x - 60)));
+    const ry = clamp(r * 1.45, 140, Math.max(140, Math.min(c.y - 90, H - c.y - 40)));
+    const n = fwordsEl.children.length;
+    [...fwordsEl.children].forEach((b, i) => {
+      const ang = -Math.PI / 2 + (i / n) * TAU;
+      const wob = reduceMotion ? 0 : Math.sin(T * 1.1 + i * 1.7) * 5;
+      b.style.left = `${c.x + Math.cos(ang) * rx}px`;
+      b.style.top = `${c.y + Math.sin(ang) * ry + wob}px`;
+    });
+  }
+}
+let liveText = '';
+function setLive(t) {
+  if (t === liveText) return;
+  liveText = t;
+  const el = $('#live');
+  if (el) el.textContent = t;
+}
+function update(dt) {
+  stateTime += dt;
+  const st = S.state;
+
+  // 攝影機轉場
+  if (camTween) {
+    camTween.t += dt;
+    const k = ease(Math.min(1, camTween.t / camTween.dur));
+    camera.position.lerpVectors(camTween.p0, camTween.p1, k);
+    controls.target.lerpVectors(camTween.t0, camTween.t1, k);
+    if (k >= 1) camTween = null;
+  }
+
+  // Stage 1：未探索零件微光呼吸、選中零件科技藍
+  if (st === 'S1') {
+    for (const k of PART_ORDER) {
+      if (k === S.part) setEmissive(k, 0x2a6cff, k === 'shield' ? 0.9 : 0.45);
+      else if (!S.seen.has(k)) setEmissive(k, 0xffa64d, reduceMotion ? 0.2 : 0.16 + 0.12 * Math.sin(T * 3));
+      else setEmissive(k, 0x000000, 0);
+    }
+  }
+
+  if (st === 'S2b' && pour) updatePour(dt);
+  if (S.auto && S.auto.from === st) { S.auto.t -= dt; if (S.auto.t <= 0) { const to = S.auto.to; S.auto = null; go(to); return; } }
+  updateLoops();
+  placeOverlays();
+
+  // Stage 3：按住加熱
+  if (st === 'S3a' && S.holding) {
+    S.heat = Math.min(1, S.heat + dt / 3.5);
+    applyHeat(S.heat);
+    if (S.heat >= 1) { S.holding = false; chime(1047, 0.6, 0.1); renderPanel('keep'); autoNext('S3b'); }
+  }
+  if (st === 'S3a') setDial(S.heat, `${Math.round(25 + S.heat * 160)}°C`, '溫度');
+  if ((st === 'S3b' || st === 'S3c') && !reduceMotion) liquid.scale.x = liquid.scale.z = 1 + 0.03 * Math.sin(T * 6);
+
+  // Stage 4：畫圈控制轉速
+  if (st === 'S4a') {
+    const now = performance.now();
+    const moving = G.active && now - G.lastT < 250;
+    if (!moving) G.omega *= Math.exp(-dt * 4);
+    if (S.autoSpin) S.level += (0.85 - S.level) * Math.min(1, dt * 2);
+    else if (moving) S.level += (clamp(G.omega / (TAU * 0.9), 0, 1) - S.level) * Math.min(1, dt * 5);
+    else S.level = Math.max(0, S.level - 0.45 * dt);
+    const ok = S.level >= 0.6;
+    S.sustain = ok ? S.sustain + dt : Math.max(0, S.sustain - dt * 0.5);
+    S.threadP = (S.sustain / 2) * 0.3;
+    applyThreads();
+    setDial(S.level, `${Math.round(S.level * 100)}`, '轉速');
+    if (S.level > 0.12 && S.level < 0.6) {
+      dropTimer -= dt;
+      if (dropTimer <= 0) { spawnDrop(); dropTimer = 0.22; }
+    }
+    if (ok) setLive('繼續畫圈，等糖絲飛出來。');
+    else if (S.level > 0.12) setLive('轉太慢了，糖液只會滴下來。再快一點！');
+    else if (S.hint1) setLive('跟著示範畫大圈，連續轉動。');
+    else setLive('還沒轉起來，畫圈試試看。');
+    if (stateTime > 15 && !S.hint1 && S.sustain === 0) { S.hint1 = true; startGhost('spin'); }
+    if (stateTime > 30 && !S.helpOffered) { S.helpOffered = true; renderPanel(); liveText = ''; }
+    if (S.sustain >= 2) { sparkle(); go('S4b'); }
+  }
+  if (st === 'S4c') S.level += (0.8 - S.level) * Math.min(1, dt * 2);
+  if (st === 'S4b') {
+    S.level += (0.8 - S.level) * Math.min(1, dt * 2);
+    if (S.threadP < 1) {
+      S.threadP = Math.min(1, S.threadP + dt / 1.6);
+      applyThreads();
+      if (S.threadP >= 1 && !S.s4ask) { S.s4ask = true; renderPanel(); }
+    }
+  }
+
+  // Stage 5：繞圈收集
+  if (st === 'S5a' && C.prog < 1) {
+    if (S.autoCircle) {
+      const a = stateTime * 2.8;
+      const p = new V3(Math.cos(a) * 0.62, 1.85, Math.sin(a) * 0.62);
+      feedAngle(p, performance.now());
+      stickTo(p);
+    }
+    C.prog = Math.min(1, C.acc / (LAPS * TAU));
+    const lap = Math.min(LAPS, Math.floor(C.acc / TAU + 1e-6));
+    if (lap > (S.lap || 0)) {
+      S.lap = lap;
+      chime(660 + lap * 110, 0.4, 0.08);
+      const lc = $('#lapCount'); if (lc) lc.textContent = `${lap} / ${LAPS} 圈`;
+    }
+    setDial(C.prog, `${Math.min(LAPS, S.lap || 0)}`, `/ ${LAPS} 圈`);
+    if (C.samples.length > 8) {
+      let sx = 0, sz = 0, sr = 0;
+      for (const q of C.samples) { sx += q.x; sz += q.z; sr += Math.hypot(q.x, q.z); }
+      const n = C.samples.length;
+      const cx = sx / n, cz = sz / n, meanR = sr / n, offset = Math.hypot(cx, cz) / 1.2;
+      C.flatT = smooth(0.82, 1.05, meanR);
+      C.skewT = smooth(0.2, 0.4, offset);
+      if (offset > 0.1) C.dir = Math.atan2(cz, cx);
+    }
+    C.flat += (C.flatT - C.flat) * Math.min(1, dt * 2);
+    C.skew += (C.skewT - C.skew) * Math.min(1, dt * 2);
+    applyCandy();
+    S.threadFade = 1 - 0.75 * C.prog;
+    applyThreads();
+    const sz = $('#size');
+    if (sz) sz.style.width = `${C.prog * 100}%`;
+    if (stateTime > 18 && C.prog < 0.25 && !S.hint1) { S.hint1 = true; startGhost('circle'); setLive('按住木棒，在盆子裡一圈一圈地繞。'); }
+    if (stateTime > 32 && C.prog < 0.6 && !S.helpOffered) { S.helpOffered = true; liveText = ''; renderPanel(); }
+    if (C.prog >= 1 && !S.auto) { S.autoCircle = false; G.active = false; sparkle(); renderPanel('keep'); autoNext('S5c'); }
+  }
+
+  // 完成後：形狀定案、木棒抬起、緩慢展示
+  if (st === 'S5c' || stageOf(st) === 6) {
+    C.flat += (C.flatT - C.flat) * Math.min(1, dt * 3);
+    C.skew += (C.skewT - C.skew) * Math.min(1, dt * 3);
+    applyCandy();
+    if (!reduceMotion) candyGroup.rotation.y += 0.3 * dt;
+    if (st === 'S5c' && S.threadFade > 0.2) { S.threadFade = Math.max(0.2, S.threadFade - dt); applyThreads(); }
+  }
+  if (lift) {
+    lift.t += dt;
+    const k = ease(Math.min(1, lift.t / 1.1));
+    candyGroup.position.lerpVectors(lift.from, lift.to, k);
+    if (k >= 1) lift = null;
+  }
+
+  // 加熱頭自轉、糖絲隨轉動流動
+  spinner.rotation.y += S.level * 24 * dt;
+  threadGroup.rotation.y += S.level * 1.2 * dt;
+
+  // 糖液滴落
+  for (const d of drops) {
+    if (!d.m.visible) continue;
+    d.life += dt;
+    if (d.m.position.y > 1.46) {
+      d.v.y -= 4.9 * dt;
+      d.m.position.addScaledVector(d.v, dt);
+    }
+    if (d.life > 1.2) d.m.visible = false;
+  }
+
+  drawGuide();
+  drawTrail();
+}
+
+// 動畫迴圈：以 Clock 的 delta 讓速度與螢幕更新率無關
+/* ============================================================
+   環境光遮蔽（GTAO）：零件交界與折角自然變暗，強度 0.35；平板輕量版不開
+   ============================================================ */
+function setAO(on) {
+  useAO = on && !!composer;
+  // 後製會對背景也做色調映射，提高背景亮度讓有無遮蔽時底色一致
+  scene.backgroundIntensity = useAO ? 1.45 : 1;
+}
+if (QUALITY === 'high') {
+  const dpr0 = Math.min(window.devicePixelRatio, MAX_DPR);
+  composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(W * dpr0, H * dpr0, { type: THREE.HalfFloatType, samples: 4 }));
+  composer.addPass(new RenderPass(scene, camera));
+  const gtao = new GTAOPass(scene, camera, W, H);
+  gtao.updateGtaoMaterial({ radius: 0.4, distanceExponent: 2, thickness: 1, scale: 0.85, samples: 16 });
+  gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
+  gtao.blendIntensity = 0.35;
+  // 計算遮蔽時暫時隱藏防風玻璃與導引糖絲，避免透明物件被當成遮擋物
+  const gtaoRender = gtao.render.bind(gtao);
+  gtao.render = (...args) => {
+    const sv = shield.visible, tv = threadGroup.visible;
+    shield.visible = false; threadGroup.visible = false;
+    gtaoRender(...args);
+    shield.visible = sv; threadGroup.visible = tv;
+  };
+  composer.addPass(gtao);
+  composer.addPass(new OutputPass());
+  composer.setPixelRatio(dpr0);
+  composer.setSize(W, H);
+  setAO(true);
+}
+
+// 幀率監測：第一個 3 秒視窗用來暖機（著色器編譯），之後若低於 40fps，先降解析度、再降材質
+const perf = { start: 0, frames: 0, warmed: false, done: false };
+function watchPerf(now) {
+  if (perf.done) return;
+  if (document.hidden) { perf.start = 0; return; }
+  if (!perf.start) { perf.start = now; perf.frames = 0; return; }
+  perf.frames++;
+  const elapsed = now - perf.start;
+  if (elapsed < 3000) return;
+  const fps = (perf.frames * 1000) / elapsed;
+  perf.start = 0;
+  if (!perf.warmed) { perf.warmed = true; return; }
+  if (fps >= 40) { perf.done = true; return; }
+  if (useAO) { setAO(false); return; }            // 第一步：先關環境光遮蔽
+  if (MAX_DPR > 1) { MAX_DPR = 1; resize(); return; } // 第二步：降解析度
+  if (QUALITY === 'high') degradeMaterials();
+  perf.done = true;
+}
+
+// 拍立得：用另一台相機從棉花糖視角拍一張，裁成正方形
+const snapCam = camera.clone();
+function snapCandy() {
+  const v = CAM.candy, k = camera.aspect < 1.1 ? Math.pow(1.1 / camera.aspect, 0.8) : 1;
+  snapCam.copy(camera);
+  snapCam.clearViewOffset();
+  snapCam.position.copy(v.target.clone().add(v.pos.clone().sub(v.target).multiplyScalar(k * 0.92)));
+  snapCam.lookAt(v.target);
+  snapCam.updateProjectionMatrix();
+  renderer.render(scene, snapCam);
+  const src = renderer.domElement, side = Math.min(src.width, src.height);
+  const out = document.createElement('canvas'); out.width = out.height = Math.min(720, side);
+  out.getContext('2d').drawImage(src, (src.width - side) / 2, (src.height - side) / 2, side, side, 0, 0, out.width, out.height);
+  return out.toDataURL('image/jpeg', 0.9);
+}
+function printPolaroid() {
+  const box = $('#polaroid');
+  box.hidden = true;
+  $('#poloImg').src = snapCandy();
+  $('#poloText').textContent = myPara() || '我的棉花糖';
+  const d = new Date();
+  $('#poloDate').textContent = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+  // 重新觸發動畫
+  const card = box.querySelector('.polo-card'), img = $('#poloImg'), acts = box.querySelector('.polo-actions');
+  [card, img, acts].forEach(el => { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; });
+  box.hidden = false;
+}
+// 長按拍立得：把相片和描寫畫成一張圖下載
+function wrapText(ctx, text, maxW) {
+  const lines = []; let line = '';
+  for (const ch of text) { if (ctx.measureText(line + ch).width > maxW && line) { lines.push(line); line = ch; } else line += ch; }
+  if (line) lines.push(line);
+  return lines;
+}
+async function polaroidBlob() {
+  const img = $('#poloImg');
+  if (!img.complete) await new Promise(r => { img.onload = r; });
+  const W = 900, pad = 44, photo = W - pad * 2, font = '"Chiron GoRound TC", sans-serif';
+  const meas = document.createElement('canvas').getContext('2d');
+  meas.font = `36px ${font}`;
+  const lines = wrapText(meas, $('#poloText').textContent, photo - 8);
+  const H = pad + photo + 40 + lines.length * 62 + 70;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#FFFDF9'; ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(img, pad, pad, photo, photo);
+  ctx.fillStyle = '#3A3150'; ctx.font = `36px ${font}`; ctx.textBaseline = 'top';
+  lines.forEach((l, i) => ctx.fillText(l, pad + 4, pad + photo + 36 + i * 62));
+  ctx.fillStyle = '#A79DB8'; ctx.font = '26px Fredoka, sans-serif'; ctx.textAlign = 'right';
+  ctx.fillText($('#poloDate').textContent, W - pad, H - 56);
+  return new Promise(r => c.toBlob(r, 'image/png'));
+}
+let dlCap;
+async function downloadPolaroid() {
+  const blob = await polaroidBlob();
+  const filename = '我的棉花糖.png';
+  try {
+    if (dlCap === undefined) dlCap = window.claude?.use ? await window.claude.use('downloads') : null;
+    if (dlCap) { await dlCap.save({ filename, data: blob }); toast('拍立得已下載'); return; }
+  } catch (err) {
+    if (err && err.code === 'declined') return;
+    if (err && err.code === 'rate_limited') { toast('稍等一下再試試看'); return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+{
+  const card = document.querySelector('.polo-card');
+  let timer = null;
+  const cancel = () => { clearTimeout(timer); timer = null; card.classList.remove('pressing'); };
+  card.addEventListener('pointerdown', e => {
+    if (e.button > 0) return;
+    card.classList.add('pressing');
+    timer = setTimeout(() => { cancel(); downloadPolaroid(); }, 650);
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => card.addEventListener(t, cancel));
+  card.addEventListener('contextmenu', e => e.preventDefault());
+}
+$('#poloDone').addEventListener('click', () => { $('#polaroid').hidden = true; });
+$('#polaroid').addEventListener('click', e => { if (e.target.id === 'polaroid') $('#polaroid').hidden = true; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('#polaroid').hidden = true; });
+
+const clock = new THREE.Clock();
+function loop() {
+  requestAnimationFrame(loop);
+  watchPerf(performance.now());
+  const dt = Math.min(clock.getDelta(), 0.1);
+  T += dt;
+  update(dt);
+  controls.update();
+  if (useAO) composer.render(dt);
+  else renderer.render(scene, camera);
+}
+
+resize();
+setupStage(0);
+enter('S0');
+goView('overview', 0);
+loop();
+// 在開始操作前預先編譯倒糖材質，避免首次放開勺子時才等待 shader。
+// 直接編譯隱藏物件，不改變可見狀態，也不等待編譯完成才啟動互動。
+requestAnimationFrame(() => {
+  Promise.all([
+    renderer.compileAsync(spoon3d, camera, scene),
+    renderer.compileAsync(sugar, camera, scene)
+  ]).catch(err => console.warn('倒糖材質預備未完成，將於顯示時編譯。', err));
+});
+</script>
+
+</body></html>

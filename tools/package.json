@@ -1,0 +1,12 @@
+{
+  "name": "cotton-candy-three-bundle",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild three-entry.js --bundle --minify --format=esm --target=safari15,chrome90 --legal-comments=none --outfile=../vendor/three-bundle.min.js"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.0",
+    "three": "0.169.0"
+  }
+}
